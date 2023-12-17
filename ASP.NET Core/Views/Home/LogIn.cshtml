@@ -1,0 +1,48 @@
+﻿@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <link href="https://cdn.syncfusion.com/ej2/23.2.4/fluent.css" rel="stylesheet" />
+    <title>Log In</title>
+</head>
+<body>
+    <form method="post" enctype="multipart/form-data" onsubmit="onSubmit()" asp-controller="Home" asp-action="LogIn">
+        <table style="margin-top:20%; margin-left:45%">
+            <tr>
+                <td>Email Id:</td>
+            </tr>
+            <tr>
+                <td>
+                    <span class="e-input-group">               
+                        <input type="text" class="e-input" id="email_id" name="emailId" />
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td>Name:</td>
+            </tr>
+            <tr>
+                <td>
+                    <input id="_username" class="e-input" type="text" name="userName" />
+                    <input type="text" class="e-input" id="returnUrl" name="returnUrl" style="visibility:hidden" />
+                </td>
+            </tr>
+            <tr>
+                <td><button class='e-control e-btn e-lib e-primary' type="submit">Log in</button></td>
+            </tr>
+        </table>
+    </form>
+
+    <script>
+        function onSubmit() {
+
+            const urlSearchParams = new URLSearchParams(window.location.search);
+            const searchTerm = urlSearchParams.get('returnUrl');
+            document.getElementById("returnUrl").value = searchTerm;
+        }
+    </script>
+</body>
+</html>
