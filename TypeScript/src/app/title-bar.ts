@@ -2,7 +2,7 @@ import { createElement } from '@syncfusion/ej2-base';
 import { ActionInfo, DocumentEditor } from '@syncfusion/ej2-documenteditor';
 import { Button } from '@syncfusion/ej2-buttons';
 import { DropDownButton, ItemModel } from '@syncfusion/ej2-splitbuttons';
-
+import { Tooltip } from '@syncfusion/ej2-popups';
 /**
  * Represents document editor title bar.
  */
@@ -25,12 +25,12 @@ export class TitleBar {
         this.wireEvents();
     }
     private initializeTitleBar = (isShareNeeded: Boolean): void => {
-        let printText: string = "";
-        let printToolTip: string = "";
+        let shareText: string = "";
+        let shareToolTip: string = "";
         let documentTileText: string = "";
         if (!this.isRtl) {
-            printText = 'Print';
-            printToolTip = 'Print this document (Ctrl+P).';
+            shareText = 'Share';
+            shareToolTip = 'Share this link';
         }
         // tslint:disable-next-line:max-line-length
         this.documentTitle = createElement('label', { id: 'documenteditor_title_name', styles: 'font-weight:400;text-overflow:ellipsis;white-space:pre;overflow:hidden;user-select:none;cursor:text' });
@@ -45,14 +45,68 @@ export class TitleBar {
         let btnStyles: string = btnFloatStyle + 'background: transparent;box-shadow:none; font-family: inherit;border-color: transparent;'
             + 'border-radius: 2px;color:inherit;font-size:12px;text-transform:capitalize;height:28px;font-weight:400;margin-top: 2px;';
         // tslint:disable-next-line:max-line-length
-        this.print = this.addButton('e-de-icon-Print ' + iconCss, printText, btnStyles, 'de-print', printToolTip, false) as Button;
+        this.print = this.addButton('e-de-icon-Print ' + iconCss, shareText, btnStyles, 'de-print', shareToolTip, false) as Button;
 
         //User info div
         this.userList = createElement('div', { id: 'de_userInfo', styles: 'float:right;margin-top: 3px;' });
         this.tileBarDiv.appendChild(this.userList);
+        this.createTooltip();
+    }
+    private createPopUpDisplay(): HTMLElement {
+        //Creatin the copy link element
+        let tooltip: HTMLElement = createElement('div', { id: 'tooltipContent', styles: 'display:none' });
+        let tooltipClass: HTMLElement = createElement('div', { className: 'content' });
+        let firstChild: HTMLElement = createElement('div', { styles: 'margin-bottom:12px;font-size:15px', })
+        firstChild.textContent = 'Share this URL with other for realtime editing';
+        let secondchild: HTMLElement = createElement('div', { styles: 'display:flex' });
+        secondchild.appendChild(createElement('input', { id: 'share_url', className: 'e-input', attrs: { type: 'text' } }));
+        let copyButton: HTMLElement = createElement('button', {
+            styles: 'margin-left:10px',
+            className: 'e-primary e-btn',
+            innerHTML: 'Copy Url'
+        });
+        copyButton.addEventListener('click', this.copyUrl);
+        secondchild.appendChild(copyButton);
+        tooltipClass.appendChild(firstChild);
+        tooltipClass.appendChild(secondchild);
+        return tooltip.appendChild(tooltipClass);
+    }
+    private copyUrl(): void {
+        // Get the text field
+        var copyText: HTMLInputElement = document.getElementById("share_url") as HTMLInputElement;
+        if (copyText) {
+            // Select the text field
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); // For mobile devices
+            // Copy the text inside the text field
+            (navigator as any).clipboard.writeText(copyText.value);
+        }
+    }
+    private createTooltip(): void {
+        let tooltip = new Tooltip({
+            cssClass: 'e-tooltip-template-css',
+            opensOn: 'Click Custom Focus',
+            content: this.createPopUpDisplay(),
+            beforeRender: this.onBeforeRender,
+            afterOpen: this.onAfterOpen,
+            width: '400px'
+        });
+        tooltip.appendTo('#de-print');
+    }
+    private onBeforeRender = (): void => {
+        let tooltipContent = document.getElementById('tooltipContent');
+        if (tooltipContent) {
+            tooltipContent.style.display = 'block';
+        }
+    }
+    private onAfterOpen = (): void => {
+        let shareUrl: HTMLInputElement = document.getElementById("share_url") as HTMLInputElement;
+        if (shareUrl) {
+            shareUrl.value = window.location.href;
+        }
     }
     private wireEvents = (): void => {
-        this.print?.element.addEventListener('click', this.onPrint);
+        this.print?.element.addEventListener('click', this.shareUrl);
     }
     // Updates document title.
     public updateDocumentTitle = (): void => {
@@ -111,5 +165,9 @@ export class TitleBar {
 
     private onPrint = (): void => {
         this.documentEditor.print();
+    }
+
+    private shareUrl = (): void => {
+
     }
 }
