@@ -18,7 +18,6 @@ DocumentEditor.Inject(CollaborativeEditingHandler);
 })
 export class AppComponent {
   title = 'syncfusion-angular-app';
-  
   @ViewChild("documenteditor_default")
   private container!: DocumentEditorContainerComponent;
 
