@@ -6,6 +6,7 @@ import { DocumentEditor, CollaborativeEditingHandler } from '@syncfusion/ej2-doc
 import { TitleBar } from "./title-bar"
 import { HubConnectionBuilder, HttpTransportType, HubConnectionState, HubConnection } from '@microsoft/signalr';
 import { hideSpinner, showSpinner } from '@syncfusion/ej2-popups';
+import { isNullOrUndefined } from '@syncfusion/ej2-base';
 
 DocumentEditor.Inject(CollaborativeEditingHandler);
 @Component({
@@ -34,14 +35,18 @@ export class AppComponent {
     this.container.documentEditor.documentName = 'Getting Started';
     //Enable collaborative editing in Document Editor.
     this.container.documentEditor.enableCollaborativeEditing = true;
-    this.collaborativeEditingHandler = this.container.documentEditor.collaborativeEditingHandlerModule;
+    
     //Title bar implementation
     this.titleBar = new TitleBar(document.getElementById('documenteditor_titlebar') as HTMLElement, this.container.documentEditor, true);
     this.titleBar.updateDocumentTitle();
+    this.initializeSignalR();
     this.loadDocumentFromServer();
   }
 
   onContentChange = (args: ContainerContentChangeEventArgs) => {
+    if(isNullOrUndefined(this.collaborativeEditingHandler)) {
+      this.collaborativeEditingHandler = this.container.documentEditor.collaborativeEditingHandlerModule;
+    }
     if (this.collaborativeEditingHandler) {
       //Send the editing action to server
       this.collaborativeEditingHandler.sendActionToServer(args.operations as Operation[])
