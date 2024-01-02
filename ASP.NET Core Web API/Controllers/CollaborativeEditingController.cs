@@ -35,12 +35,12 @@ namespace WebApplication1.Controllers
         {
             DocumentContent content = new DocumentContent();
             WordDocument document = GetSourceDocument(param.fileName);
-            //List<ActionInfo> actions = CreatedTable(param.roomName);
-            //if (actions != null)
-            //{
-            //    //Updated pending edit from database to source document.
-            //    document.UpdateActions(actions);
-            //}
+            List<ActionInfo> actions = CreatedTable(param.roomName);
+            if (actions != null)
+            {
+                //Updated pending edit from database to source document.
+                document.UpdateActions(actions);
+            }
             string json = Newtonsoft.Json.JsonConvert.SerializeObject(document);
             content.version = 0;
             content.sfdt = json;
