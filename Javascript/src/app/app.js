@@ -3,7 +3,7 @@ import { HubConnectionBuilder, HttpTransportType, HubConnectionState } from '@mi
 
 //Collaborative editing controller url
 
-var serviceUrl = 'https://webapplication120230413155843.azurewebsites.net/';
+var serviceUrl = 'http://localhost:5212/';
 var collborativeEditingHandler;
 var connectionId = "";
 const toolbarItems = ['Undo', 'Redo', 'Separator', 'Image', 'Table', 'Hyperlink', 'Bookmark', 'TableOfContents', 'Separator', 'Header', 'Footer', 'PageSetup', 'PageNumber', 'Break', 'InsertFootnote', 'InsertEndnote', 'Separator', 'Find', 'Separator', 'Comments', 'TrackChanges', 'Separator', 'LocalClipboard', 'RestrictEditing', 'Separator', 'FormFields', 'UpdateFields']

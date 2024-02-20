@@ -8,7 +8,7 @@ import { createSpinner, hideSpinner, showSpinner } from '@syncfusion/ej2-popups'
 DocumentEditor.Inject(CollaborativeEditingHandler);
 // tslint:disable:max-line-length
 class Editor extends React.Component {
-    public serviceUrl = 'https://webapplication120230413155843.azurewebsites.net/';
+    public serviceUrl = 'http://localhost:5212/';
     public container!: DocumentEditorContainerComponent | null;
     public titleBar?: TitleBar;
     public collaborativeEditingHandler?: CollaborativeEditingHandler;

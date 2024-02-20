@@ -4,7 +4,7 @@ import { createSpinner, hideSpinner, showSpinner } from '@syncfusion/ej2-popups'
 import { HubConnectionBuilder, HttpTransportType, HubConnectionState } from '@microsoft/signalr';
 
 //Collaborative editing controller url
-let serviceUrl = 'https://webapplication120230413155843.azurewebsites.net/';
+let serviceUrl = 'http://localhost:5212/';
 let collborativeEditingHandler: CollaborativeEditingHandler;
 let connectionId: string = "";
 let toolbarItems: ToolbarItem[] = ['Undo', 'Redo', 'Separator', 'Image', 'Table', 'Hyperlink', 'Bookmark', 'TableOfContents', 'Separator', 'Header', 'Footer', 'PageSetup', 'PageNumber', 'Break', 'InsertFootnote', 'InsertEndnote', 'Separator', 'Find', 'Separator', 'Comments', 'TrackChanges', 'Separator', 'LocalClipboard', 'RestrictEditing', 'Separator', 'FormFields', 'UpdateFields']

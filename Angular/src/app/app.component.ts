@@ -22,7 +22,7 @@ export class AppComponent {
   private container!: DocumentEditorContainerComponent;
 
   private collaborativeEditingHandler!: CollaborativeEditingHandler;
-  private serviceUrl: string = "https://webapplication120230413155843.azurewebsites.net/";
+  private serviceUrl: string = "http://localhost:5212/";
   public connection?: HubConnection;
   public titleBar?: TitleBar;
   public connectionId: string = '';
