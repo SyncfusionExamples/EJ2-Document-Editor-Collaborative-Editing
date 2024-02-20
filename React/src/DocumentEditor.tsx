@@ -1,21 +1,22 @@
 import * as React from 'react';
-import { useRef } from 'react';
-import { DocumentEditorContainerComponent, Toolbar, CollaborativeEditingHandler, DocumentEditorComponent, ContainerContentChangeEventArgs, Operation, Inject } from '@syncfusion/ej2-react-documenteditor';
+import { DocumentEditorContainerComponent, Toolbar, CollaborativeEditingHandler, ContainerContentChangeEventArgs, Operation, Inject, ToolbarItem } from '@syncfusion/ej2-react-documenteditor';
 import { DocumentEditor } from '@syncfusion/ej2-react-documenteditor';
 import { TitleBar } from './title-bar';
 import { HubConnectionBuilder, HttpTransportType, HubConnectionState, HubConnection } from '@microsoft/signalr';
-import { hideSpinner, showSpinner } from '@syncfusion/ej2-popups';
+import { createSpinner, hideSpinner, showSpinner } from '@syncfusion/ej2-popups';
 
 DocumentEditor.Inject(CollaborativeEditingHandler);
 // tslint:disable:max-line-length
 class Editor extends React.Component {
-    public serviceUrl = 'http://localhost:5212/';
+    public serviceUrl = 'https://webapplication120230413155843.azurewebsites.net/';
     public container!: DocumentEditorContainerComponent | null;
     public titleBar?: TitleBar;
     public collaborativeEditingHandler?: CollaborativeEditingHandler;
     public connectionId: string = '';
     public connection?: HubConnection;
     public currentUser: string = 'Guest user';
+    public toolbarItems : ToolbarItem[] = ['Undo', 'Redo', 'Separator', 'Image', 'Table', 'Hyperlink', 'Bookmark', 'TableOfContents', 'Separator', 'Header', 'Footer', 'PageSetup', 'PageNumber', 'Break', 'InsertFootnote', 'InsertEndnote', 'Separator', 'Find', 'Separator', 'Comments', 'TrackChanges', 'Separator', 'LocalClipboard', 'RestrictEditing', 'Separator', 'FormFields', 'UpdateFields']
+     public users = ["Kathryn Fuller", "Tamer Fuller", "Martin Nancy", "Davolio Leverling", "Nancy Fuller", "Fuller Margaret", "Leverling Andrew"];
 
     public componentDidMount(): void {
         window.onbeforeunload = function () {
@@ -23,11 +24,9 @@ class Editor extends React.Component {
         }
         if (this.container) {
             this.container.documentEditor.enableCollaborativeEditing = true;
-            this.container.documentEditor.pageOutline = '#E0E0E0';
-            this.container.documentEditor.acceptTab = true;
             this.container.documentEditor.resize();
             this.titleBar = new TitleBar(document.getElementById('documenteditor_titlebar') as HTMLElement, this.container.documentEditor, true);
-            this.titleBar.updateDocumentTitle();
+            
             this.collaborativeEditingHandler = this.container.documentEditor.collaborativeEditingHandlerModule;
 
             this.container.contentChange = (args: ContainerContentChangeEventArgs) => {
@@ -37,9 +36,13 @@ class Editor extends React.Component {
                 }
             }
             if (!this.connection) {
+                const random = Math.floor(Math.random() * this.users.length);
+                this.currentUser = this.users[random];
+                this.container.documentEditor.documentName = 'Gaint Panda';
                 this.initializeSignalR();
                 this.loadDocumentFromServer();
             }
+            this.titleBar.updateDocumentTitle();
         }
     }
 
@@ -82,7 +85,6 @@ class Editor extends React.Component {
     }
 
     public openDocument(responseText: string, roomName: string): void {
-        showSpinner(document.getElementById('container') as HTMLElement);
 
         let data = JSON.parse(responseText);
         if (this.container) {
@@ -103,10 +105,12 @@ class Editor extends React.Component {
         }
 
 
-        hideSpinner(document.getElementById('container') as HTMLElement);
+        hideSpinner(document.body);
     }
 
     public loadDocumentFromServer() {
+        createSpinner({target: document.body});
+        showSpinner(document.body);
         const queryString = window.location.search;
         const urlParams = new URLSearchParams(queryString);
         let roomId = urlParams.get('id');
@@ -123,7 +127,7 @@ class Editor extends React.Component {
                     this.openDocument(httpRequest.responseText, roomId as string);
                 }
                 else {
-                    hideSpinner(document.getElementById('container') as HTMLElement);
+                    hideSpinner(document.body);
                     alert('Fail to load the document');
                 }
             }
@@ -153,13 +157,20 @@ class Editor extends React.Component {
 
     render() {
         return (<div className='control-pane'>
-            <div>
+            <div id="toast_type"></div>
+            <div style={{ "height": "93vh" }}>
                 <div id='documenteditor_titlebar' className="e-de-ctn-title"></div>
-                <div id="documenteditor_container_body">
-                    <DocumentEditorContainerComponent id="container" ref={(scope) => { this.container = scope; }} style={{ 'display': 'block' }}
-                        height={'590px'} currentUser={this.currentUser} serviceUrl={this.serviceUrl + 'api/documenteditor'} enableToolbar={true} locale='en-US' >
-                        <Inject services={[Toolbar]} />
-                    </DocumentEditorContainerComponent>
+                <DocumentEditorContainerComponent id="container" ref={(scope: DocumentEditorContainerComponent) => { this.container = scope; }} style={{ 'display': 'block' }}
+                    height={'100%'} currentUser={this.currentUser} toolbarItems={this.toolbarItems} serviceUrl={this.serviceUrl + 'api/documenteditor'} enableToolbar={true} locale='en-US' >
+                    <Inject services={[Toolbar]} />
+                </DocumentEditorContainerComponent>
+            </div>
+            <div id="defaultDialog" style={{ "display": "none" }}>
+                <div className="e-de-para-dlg-heading">
+                    Share this URL with others for real-time editing
+                </div>
+                <div className="e-de-container-row">
+                    <input type="text" id="share_url" className="e-input" readOnly />
                 </div>
             </div>
         </div>);
@@ -167,4 +178,3 @@ class Editor extends React.Component {
 
 }
 export default Editor;
-

@@ -1,9 +1,18 @@
-<div>
+<div id="toast_type"></div>
+
+<div style="height: 93vh;">
   <div id="documenteditor_titlebar" class="e-de-ctn-title" style="height:35px;"></div>
-  <ejs-documenteditorcontainer #documenteditor_default [enableToolbar]="true" (created)="onCreated()"
-    (contentChange)="onContentChange($event)" height="600px" style="display: block;"></ejs-documenteditorcontainer>
+  <ejs-documenteditorcontainer #documenteditor_default [toolbarItems]="toolbarItems" [enableToolbar]="true" (created)="onCreated()"
+    (contentChange)="onContentChange($event)" [currentUser]="currentUser" height="100%" style="display: block;"></ejs-documenteditorcontainer>
 </div>
 
-
+<div id="defaultDialog" style="display: none;">
+  <div class="e-de-para-dlg-heading">
+      Share this URL with others for real-time editing
+  </div>
+  <div class="e-de-container-row">
+      <input type="text" id="share_url" class="e-input" readonly />
+  </div>
+</div>
 
 <router-outlet></router-outlet>

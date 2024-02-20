@@ -3,6 +3,10 @@ import { ActionInfo, DocumentEditor } from '@syncfusion/ej2-documenteditor';
 import { Button } from '@syncfusion/ej2-buttons';
 import { DropDownButton, ItemModel } from '@syncfusion/ej2-splitbuttons';
 import { Tooltip } from '@syncfusion/ej2-popups';
+import { Dialog } from '@syncfusion/ej2-popups';
+import { Toast } from '@syncfusion/ej2-notifications';
+import { ListView } from '@syncfusion/ej2-lists';
+
 /**
  * Represents document editor title bar.
  */
@@ -15,6 +19,8 @@ export class TitleBar {
     private isRtl?: boolean;
     private userList?: HTMLElement;
     public userMap: any = {};
+    private dialogObj?: Dialog;
+    private toastObj?: Toast;
 
     constructor(element: HTMLElement, docEditor: DocumentEditor, isShareNeeded: Boolean, isRtl?: boolean) {
         //initializes title bar elements.
@@ -50,63 +56,13 @@ export class TitleBar {
         //User info div
         this.userList = createElement('div', { id: 'de_userInfo', styles: 'float:right;margin-top: 3px;' });
         this.tileBarDiv.appendChild(this.userList);
-        this.createTooltip();
+        this.initDialog();
     }
-    private createPopUpDisplay(): HTMLElement {
-        //Creatin the copy link element
-        let tooltip: HTMLElement = createElement('div', { id: 'tooltipContent', styles: 'display:none' });
-        let tooltipClass: HTMLElement = createElement('div', { className: 'content' });
-        let firstChild: HTMLElement = createElement('div', { styles: 'margin-bottom:12px;font-size:15px', })
-        firstChild.textContent = 'Share this URL with other for realtime editing';
-        let secondchild: HTMLElement = createElement('div', { styles: 'display:flex' });
-        secondchild.appendChild(createElement('input', { id: 'share_url', className: 'e-input', attrs: { type: 'text' } }));
-        let copyButton: HTMLElement = createElement('button', {
-            styles: 'margin-left:10px',
-            className: 'e-primary e-btn',
-            innerHTML: 'Copy Url'
-        });
-        copyButton.addEventListener('click', this.copyUrl);
-        secondchild.appendChild(copyButton);
-        tooltipClass.appendChild(firstChild);
-        tooltipClass.appendChild(secondchild);
-        return tooltip.appendChild(tooltipClass);
-    }
-    private copyUrl(): void {
-        // Get the text field
-        var copyText: HTMLInputElement = document.getElementById("share_url") as HTMLInputElement;
-        if (copyText) {
-            // Select the text field
-            copyText.select();
-            copyText.setSelectionRange(0, 99999); // For mobile devices
-            // Copy the text inside the text field
-            (navigator as any).clipboard.writeText(copyText.value);
-        }
-    }
-    private createTooltip(): void {
-        let tooltip = new Tooltip({
-            cssClass: 'e-tooltip-template-css',
-            opensOn: 'Click Custom Focus',
-            content: this.createPopUpDisplay(),
-            beforeRender: this.onBeforeRender,
-            afterOpen: this.onAfterOpen,
-            width: '400px'
-        });
-        tooltip.appendTo('#de-print');
-    }
-    private onBeforeRender = (): void => {
-        let tooltipContent = document.getElementById('tooltipContent');
-        if (tooltipContent) {
-            tooltipContent.style.display = 'block';
-        }
-    }
-    private onAfterOpen = (): void => {
-        let shareUrl: HTMLInputElement = document.getElementById("share_url") as HTMLInputElement;
-        if (shareUrl) {
-            shareUrl.value = window.location.href;
-        }
-    }
+
     private wireEvents = (): void => {
-        this.print?.element.addEventListener('click', this.shareUrl);
+        this.print?.element.addEventListener('click', () => {
+            this.dialogObj?.show();
+        });
     }
     // Updates document title.
     public updateDocumentTitle = (): void => {
@@ -122,7 +78,7 @@ export class TitleBar {
         let button: HTMLButtonElement = createElement('button', { id: id, styles: styles }) as HTMLButtonElement;
         this.tileBarDiv.appendChild(button);
         button.setAttribute('title', tooltipText);
-        let ejButton: Button = new Button({ iconCss: iconClass, content: btnText }, button);
+        let ejButton: Button = new Button({ iconCss: 'e-de-share', content: btnText }, button);
         return ejButton;
     }
 
@@ -163,11 +119,138 @@ export class TitleBar {
         return initials;
     }
 
-    private onPrint = (): void => {
-        this.documentEditor.print();
+    private initDialog() {
+        this.dialogObj = new Dialog({
+            header: 'Share ' + this.documentEditor.documentName + '.docx',
+            animationSettings: { effect: 'None' },
+            showCloseIcon: true,
+            isModal: true,
+            width: '500px',
+            visible: false,
+            buttons: [{
+                click: this.copyURL.bind(this),
+                buttonModel: { content: 'Copy URL', isPrimary: true }
+            }],
+            open: function () {
+                let urlTextBox = document.getElementById("share_url") as HTMLInputElement;
+                if (urlTextBox) {
+                    urlTextBox.value = window.location.href;
+                    urlTextBox.select();
+                }
+            },
+            beforeOpen: () => {
+                if (this.dialogObj) {
+                    this.dialogObj.header = 'Share "' + this.documentEditor.documentName + '.docx"';
+                }
+                let dialogElement: HTMLElement = document.getElementById("defaultDialog") as HTMLElement;
+                if (dialogElement) {
+                    dialogElement.style.display = "block";
+                }
+            },
+        });
+        this.dialogObj.appendTo('#defaultDialog');
+
+        this.toastObj = new Toast({
+            position: {
+                X: 'Right'
+            },
+            target: document.body
+        });
+        this.toastObj.appendTo('#toast_type');
+
     }
 
-    private shareUrl = (): void => {
+    private copyURL() {
+        // Get the text field
+        var copyText: HTMLInputElement = document.getElementById("share_url") as HTMLInputElement;
 
+        if (copyText) {
+            // Select the text field
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); // For mobile devices
+
+            // Copy the text inside the text field
+            navigator.clipboard.writeText(copyText.value);
+
+            let toastMessage = { title: 'Success!', content: 'Link Copied.', cssClass: 'e-toast-success', icon: 'e-success toast-icons' };
+            if (this.toastObj) {
+                this.toastObj.show(toastMessage);
+            }
+            if (this.dialogObj) {
+                this.dialogObj.hide();
+            }
+        }
+    }
+
+    public updateUserInfo(actionInfos: any, type: string) {
+        if (!(actionInfos instanceof Array)) {
+            actionInfos = [actionInfos];
+        }
+        if (type == "removeUser") {
+            if (this.userMap[actionInfos]) {
+                delete this.userMap[actionInfos];
+            }
+        } else {
+            for (var i = 0; i < actionInfos.length; i++) {
+                this.userMap[actionInfos[i].connectionId] = actionInfos[i];
+            }
+        }
+        if (this.userList) {
+            this.userList.innerHTML = "";
+            let keys = Object.keys(this.userMap);
+            for (var i = 0; i < keys.length; i++) {
+                var actionInfo = this.userMap[keys[i]];
+                var avatar = createElement('div', { className: 'e-avatar e-avatar-xsmall e-avatar-circle', styles: 'margin: 0px 5px', innerHTML: this.constructInitial(actionInfo.currentUser) });
+                avatar.title = actionInfo.currentUser;
+                avatar.style.cursor = 'default';
+                this.userList.appendChild(avatar);
+                if (keys.length > 5 && i == 4) {
+                    this.addListView(keys.slice(i + 1));
+                    break;
+                }
+            }
+        }
+    }
+    private addListView(keys: any) {
+        var avatar = createElement('div', { className: 'e-avatar e-avatar-xsmall e-avatar-circle', styles: 'margin: 0px 3px', innerHTML: '+' + (keys.length) });
+        avatar.style.cursor = 'pointer';
+        avatar.tabIndex = 1;
+        if (this.userList)
+            this.userList.appendChild(avatar);
+        var dataSource = [];
+        for (var i = 0; i < keys.length; i++) {
+            var actionInfo = this.userMap[keys[i]];
+            dataSource.push({ id: "s_0" + i, text: actionInfo.currentUser, avatar: this.constructInitial(actionInfo.currentUser) });
+        }
+        var listViewContainer = document.createElement('div');
+        var letterAvatarList = new ListView({
+            // Bind listview datasource
+            dataSource: dataSource,
+            // Enable header title
+            showHeader: false,
+            // Assign list-item template
+            template: '<div class="listWrapper">' +
+                '${if(avatar!=="")}' +
+                '<span class="e-avatar e-avatar-xsmall e-avatar-circle">${avatar}</span>' +
+                '${else}' +
+                '<span class="${pic} e-avatar e-avatar-xsmall e-avatar-circle"> </span>' +
+                '${/if}' +
+                '<span class="collab-user-info">' +
+                '${text} </span> </div>',
+            // Assign sorting order
+            sortOrder: 'Ascending'
+        });
+        letterAvatarList.appendTo(listViewContainer);
+        var listViewTooltip = new Tooltip({
+            cssClass: 'e-tooltip-template-css e-tooltip-menu-settings',
+            //Set tooltip open mode
+            opensOn: 'Focus',
+            //Set tooltip content
+            content: listViewContainer,
+            width: "200px",
+            showTipPointer: false
+        });
+        //Render initialized Tooltip component
+        listViewTooltip.appendTo(avatar);
     }
 }

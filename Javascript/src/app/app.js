@@ -1,26 +1,29 @@
-import { hideSpinner, showSpinner } from '@syncfusion/ej2-popups';
+import { createSpinner, hideSpinner, showSpinner } from '@syncfusion/ej2-popups';
 import { HubConnectionBuilder, HttpTransportType, HubConnectionState } from '@microsoft/signalr';
 
 //Collaborative editing controller url
 
-var serviceUrl = 'http://localhost:5212/';
+var serviceUrl = 'https://webapplication120230413155843.azurewebsites.net/';
 var collborativeEditingHandler;
 var connectionId = "";
+const toolbarItems = ['Undo', 'Redo', 'Separator', 'Image', 'Table', 'Hyperlink', 'Bookmark', 'TableOfContents', 'Separator', 'Header', 'Footer', 'PageSetup', 'PageNumber', 'Break', 'InsertFootnote', 'InsertEndnote', 'Separator', 'Find', 'Separator', 'Comments', 'TrackChanges', 'Separator', 'LocalClipboard', 'RestrictEditing', 'Separator', 'FormFields', 'UpdateFields']
+const users = ["Kathryn Fuller", "Tamer Fuller", "Martin Nancy", "Davolio Leverling", "Nancy Fuller", "Fuller Margaret", "Leverling Andrew"];
+
+const random = Math.floor(Math.random() * users.length);
+var currentUser = users[random]
 
 /**
  * Container component
  */
-var container = new ej.documenteditor.DocumentEditorContainer({ height: "590px", enableToolbar: true, showPropertiesPane: false, currentUser: 'Guest User' });
+var container = new ej.documenteditor.DocumentEditorContainer({ height: "100%", toolbarItems: toolbarItems, enableToolbar: true, currentUser: currentUser });
 container.serviceUrl = serviceUrl + 'api/documenteditor/';
 ej.documenteditor.DocumentEditorContainer.Inject(ej.documenteditor.Toolbar);
-container.appendTo('#container');
+container.appendTo('#documenteditor');
 
 //Injecting collaborative editing module
 ej.documenteditor.DocumentEditor.Inject(ej.documenteditor.CollaborativeEditingHandler);
 //Enable collaborative editing in DocumentEditor
 container.documentEditor.enableCollaborativeEditing = true;
-
-container.documentEditor.documentName = 'Getting Started';
 
 container.contentChange = function (args) {
     if (collborativeEditingHandler) {
@@ -28,6 +31,11 @@ container.contentChange = function (args) {
     }
 };
 
+window.addEventListener('resize', function (e) { 
+    setTimeout(() => {
+        container.resize();
+    }, 0);
+});
 
 // SignalR connection
 var connection = new HubConnectionBuilder().withUrl(serviceUrl + 'documenteditorhub', {
@@ -62,10 +70,10 @@ function onDataRecived(action, data) {
         } else if (connectionId != data.connectionId) {
             if (action == 'action' || action == 'addUser') {
                 //Add the user to title bar when user joins the room
-                titleBar.addUser(data);
+                titleBar.updateUserInfo(data, 'addUser');
             } else if (action == 'removeUser') {
                 //Remove the user from title bar when user leaves the room
-                titleBar.removeUser(data);
+                titleBar.updateUserInfo(data, 'removeUser');
             }
         }
         //Apply the remote action in DocumentEditor
@@ -80,7 +88,7 @@ connection.onclose(async () => {
 });
 
 function openDocument(responseText, roomName) {
-    showSpinner(document.getElementById('container'));
+   
 
     var data = JSON.parse(responseText);
 
@@ -91,22 +99,25 @@ function openDocument(responseText, roomName) {
     //Open the document
     container.documentEditor.open(data.sfdt);
 
+    container.documentEditor.documentName = "Giant Panda";
     setTimeout(function () {
         // connect to server using signalR
         connectToRoom({ action: 'connect', roomName: roomName, currentUser: container.currentUser });
     });
 
-    hideSpinner(document.getElementById('container'));
+    hideSpinner(document.body);
+    titleBar.updateDocumentTitle();
 }
 
 function loadDocumentFromServer() {
+    showSpinner(document.body);
     var queryString = window.location.search;
     var urlParams = new URLSearchParams(queryString);
-    var roomId = urlParams.get('id');
+    var roomId = urlParams.get('roomId');
 
     if (roomId == null) {
         roomId = Math.random().toString(32).slice(2)
-        window.history.replaceState({}, "", `?id=` + roomId);
+        window.history.replaceState({}, "", `?roomId=` + roomId);
     }
     var httpRequest = new XMLHttpRequest();
     httpRequest.open('Post', serviceUrl + 'api/CollaborativeEditing/ImportFile', true);
@@ -116,7 +127,7 @@ function loadDocumentFromServer() {
             if (httpRequest.status === 200 || httpRequest.status === 304) {
                 openDocument(httpRequest.responseText, roomId);
             } else {
-                hideSpinner(document.getElementById('container'));
+                hideSpinner(document.body);
                 alert('Fail to load the document');
             }
         }
@@ -124,9 +135,11 @@ function loadDocumentFromServer() {
     httpRequest.send(JSON.stringify({ "fileName": "Giant Panda.docx", "roomName": roomId }));
 }
 
+createSpinner({
+    target: document.body
+  });
+
 loadDocumentFromServer();
-
-
 
 // title bar
 var TitleBar = function () {
@@ -141,7 +154,7 @@ var TitleBar = function () {
                 shareText = 'Share';
                 shareToolTip = 'Share this link';
             }
-            _this.documentTitle = ej.base.createElement('label', { id: 'documenteditor_title_name', styles: 'font-weight:400;text-overflow:ellipsis;white-space:pre;overflow:hidden;user-select:none;cursor:text' });
+            _this.documentTitle = ej.base.createElement('label', { id: 'documenteditor_title_name', className: "e-control", styles: 'font-weight:400;text-overflow:ellipsis;white-space:pre;overflow:hidden;user-select:none;cursor:text;font-size:14px' });
             var iconCss = 'e-de-padding-right';
             var btnFloatStyle = 'float:right;';
             var titleCss = '';
@@ -149,9 +162,9 @@ var TitleBar = function () {
             _this.documentTitleContentEditor.appendChild(_this.documentTitle);
             _this.tileBarDiv.appendChild(_this.documentTitleContentEditor);
             _this.documentTitleContentEditor.setAttribute('title', documentTileText);
-            var btnStyles = btnFloatStyle + 'background: transparent;box-shadow:none; font-family: inherit;border-color: transparent;'
+            var btnStyles = btnFloatStyle + 'background: transparent;box-shadow:none;border-color: transparent;'
                 + 'border-radius: 2px;color:inherit;font-size:12px;text-transform:capitalize;height:28px;font-weight:400;margin-top: 2px;';
-            _this.print = _this.addButton('e-de-icon-Print ' + iconCss, shareText, btnStyles, 'de-print', shareToolTip, false);
+            _this.print = _this.addButton(iconCss, shareText, btnStyles, 'de-print', shareToolTip, false);
             _this.userList = ej.base.createElement('div', { id: 'de_userInfo', styles: 'float:right;margin-top: 3px;' });
             _this.tileBarDiv.appendChild(_this.userList);
         };
@@ -159,7 +172,7 @@ var TitleBar = function () {
             _this.print.element.addEventListener('click', _this.shareUrl);
         };
         this.shareUrl = function () {
-
+            dialogObj.show();
         },
             this.updateDocumentTitle = function () {
                 if (_this.documentEditor.documentName === '') {
@@ -181,29 +194,77 @@ var TitleBar = function () {
         var button = ej.base.createElement('button', { id: id, styles: styles });
         this.tileBarDiv.appendChild(button);
         button.setAttribute('title', tooltipText);
-        var ejButton = new ej.buttons.Button({ iconCss: iconClass, content: btnText }, button);
+        var ejButton = new ej.buttons.Button({ content: btnText, iconCss: 'e-de-share' }, button);
         return ejButton;
     };
-    TitleBar.prototype.addUser = function (actionInfos) {
+    TitleBar.prototype.updateUserInfo = function (actionInfos, type) {
         if (!(actionInfos instanceof Array)) {
             actionInfos = [actionInfos];
         }
-        for (var i = 0; i < actionInfos.length; i++) {
-            var actionInfo = actionInfos[i];
-            if (this.userMap[actionInfo.connectionId]) {
-                continue;
+        if (type == "removeUser") {
+            if (this.userMap[actionInfos]) {
+                delete this.userMap[actionInfos];
             }
+        } else {
+            for (var i = 0; i < actionInfos.length; i++) {
+                this.userMap[actionInfos[i].connectionId] = actionInfos[i];
+            }
+        }
+        this.userList.innerHTML = "";
+        let keys = Object.keys(this.userMap);
+        for (var i = 0; i < keys.length; i++) {
+            var actionInfo = this.userMap[keys[i]];
             var avatar = ej.base.createElement('div', { className: 'e-avatar e-avatar-xsmall e-avatar-circle', styles: 'margin: 0px 5px', innerHTML: this.constructInitial(actionInfo.currentUser) });
-            this.userMap[actionInfo.connectionId] = avatar;
             avatar.title = actionInfo.currentUser;
+            avatar.style.cursor = 'default';
             this.userList.appendChild(avatar);
+            if (keys.length > 5 && i == 4) {
+                this.addListView(keys.slice(i + 1));
+                break;
+            }
         }
     };
-    TitleBar.prototype.removeUser = function (conectionId) {
-        if (this.userMap[conectionId]) {
-            this.userList.removeChild(this.userMap[conectionId]);
-            delete this.userMap[conectionId];
+    TitleBar.prototype.addListView = function (keys) {
+        var avatar = ej.base.createElement('div', { className: 'e-avatar e-avatar-xsmall e-avatar-circle', styles: 'margin: 0px 3px', innerHTML: '+' + (keys.length) });
+        avatar.style.cursor = 'pointer';
+        avatar.tabIndex = 1;
+        this.userList.appendChild(avatar);
+        var dataSource = [];
+        for (var i = 0; i < keys.length; i++) {
+            var actionInfo = this.userMap[keys[i]];
+            dataSource.push({ id: "s_0" + i, text: actionInfo.currentUser, avatar: this.constructInitial(actionInfo.currentUser) });
         }
+        var listViewContainer = document.createElement('div');
+        var letterAvatarList = new ej.lists.ListView({
+            // Bind listview datasource
+            dataSource: dataSource,
+            // Enable header title
+            showHeader: false,
+            // Assign list-item template
+            template: '<div class="listWrapper">' +
+                '${if(avatar!=="")}' +
+                '<span class="e-avatar e-avatar-xsmall e-avatar-circle">${avatar}</span>' +
+                '${else}' +
+                '<span class="${pic} e-avatar e-avatar-xsmall e-avatar-circle"> </span>' +
+                '${/if}' +
+                '<span class="collab-user-info">' +
+                '${text} </span> </div>',
+            // Assign sorting order
+            sortOrder: 'Ascending'
+        });
+        letterAvatarList.appendTo(listViewContainer);
+        var listViewTooltip = new ej.popups.Tooltip({
+            cssClass: 'e-tooltip-template-css',
+            //Set tooltip open mode
+            opensOn: 'Focus',
+            //Set tooltip content
+            content: listViewContainer,
+            width: "200px",
+            cssClass: 'e-tooltip-menu-settings',
+            showTipPointer: false
+        });
+        //Render initialized Tooltip component
+        listViewTooltip.appendTo(avatar);
     };
     TitleBar.prototype.constructInitial = function (authorName) {
         var splittedName = authorName.split(' ');
@@ -222,29 +283,30 @@ var TitleBar = function () {
 
 var titleBar = new TitleBar(document.getElementById('documenteditor_titlebar'), container.documentEditor, true);
 
-var tooltip = new ej.popups.Tooltip({
-    cssClass: 'e-tooltip-template-css',
-    //Set tooltip open mode
-    opensOn: 'Click Custom Focus',
-    //Set tooltip content
-    content: createPopUpDisplay(),
-    beforeRender: onBeforeRender,
-    afterOpen: onAfterOpen,
-    width: "400px"
+
+var dialogObj = new ej.popups.Dialog({
+    header: 'Share ' + container.documentEditor.documentName + '.docx',
+    animationSettings: { effect: 'None' },
+    showCloseIcon: true,
+    isModal: true,
+    width: '500px',
+    visible: false,
+    buttons: [{
+        click: dlgButtonClick,
+        buttonModel: { id: "copy_button", content: 'Copy URL', isPrimary: true }
+    }],
+    open: function () {
+        document.getElementById("share_url").value = window.location.href;
+        document.getElementById("share_url").select();
+    },
+    beforeOpen: function () {
+        dialogObj.header = 'Share "' + container.documentEditor.documentName + '.docx"';
+        document.getElementById("defaultDialog").style.display = "block";
+    },
 });
-//Render initialized Tooltip component
-tooltip.appendTo('#de-print');
+dialogObj.appendTo('#defaultDialog');
 
-function onBeforeRender() {
-    if (document.getElementById('tooltipContent')) {
-        document.getElementById('tooltipContent').style.display = 'block';
-    }
-}
-function onAfterOpen() {
-    document.getElementById("share_url").value = window.location.href;
-}
-
-function copyUrl() {
+function dlgButtonClick(event) {
     // Get the text field
     var copyText = document.getElementById("share_url");
 
@@ -254,23 +316,18 @@ function copyUrl() {
 
     // Copy the text inside the text field
     navigator.clipboard.writeText(copyText.value);
+
+    let toastMessage = { title: 'Success!', content: 'Link Copied.', cssClass: 'e-toast-success', icon: 'e-success toast-icons' };
+    toastObj.show(toastMessage);
+    dialogObj.hide();
 }
-function createPopUpDisplay() {
-    //Creatin the copy link element
-    var tooltip = ej.base.createElement('div', { id: 'tooltipContent', styles: 'display:none' });
-    var tooltipClass = ej.base.createElement('div', { className: 'content' });
-    var firstChild = ej.base.createElement('div', { styles: 'margin-bottom:12px;font-size:15px', })
-    firstChild.textContent = 'Share this URL with other for realtime editing';
-    var secondchild = ej.base.createElement('div', { styles: 'display:flex' });
-    secondchild.appendChild(ej.base.createElement('input', { id: 'share_url', className: 'e-input', attrs: { type: 'text' } }));
-    var copyButton = ej.base.createElement('button', {
-        styles: 'margin-left:10px',
-        className: 'e-primary e-btn',
-        innerHTML: 'Copy Url'
-    });
-    copyButton.addEventListener('click', copyUrl);
-    secondchild.appendChild(copyButton);
-    tooltipClass.appendChild(firstChild);
-    tooltipClass.appendChild(secondchild);
-    return tooltip.appendChild(tooltipClass);
-}
+
+
+var toastObj = new ej.notifications.Toast({
+    position: {
+        X: 'Right'
+    },
+    target: document.body
+});
+toastObj.appendTo('#toast_type');
+

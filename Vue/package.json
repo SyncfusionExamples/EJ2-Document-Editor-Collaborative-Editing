@@ -9,7 +9,11 @@
   },
   "dependencies": {
     "@microsoft/signalr": "^8.0.0",
-    "@syncfusion/ej2-vue-documenteditor": "^19.84.0",
+    "@syncfusion/ej2-vue-documenteditor": "*",
+    "@syncfusion/ej2-vue-buttons" : "*",
+    "@syncfusion/ej2-notifications": "*",
+    "@syncfusion/ej2-layouts": "*",
+    "@syncfusion/ej2-vue-popups": "*",
     "core-js": "^3.8.3",
     "vue": "^2.6.14"
   },

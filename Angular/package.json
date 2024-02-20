@@ -20,6 +20,8 @@
     "@angular/router": "^17.0.0",
     "@microsoft/signalr": "^8.0.0",
     "@syncfusion/ej2-angular-documenteditor": "*",
+    "@syncfusion/ej2-layouts": "*",
+    "@syncfusion/ej2-notifications": "*",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.14.2"
