@@ -5,8 +5,7 @@ import { RouterOutlet } from '@angular/router';
 import { DocumentEditor, CollaborativeEditingHandler } from '@syncfusion/ej2-documenteditor';
 import { TitleBar } from "./title-bar"
 import { HubConnectionBuilder, HttpTransportType, HubConnectionState, HubConnection } from '@microsoft/signalr';
-import { hideSpinner, showSpinner } from '@syncfusion/ej2-popups';
-import { isNullOrUndefined } from '@syncfusion/ej2-base';
+import { createSpinner, hideSpinner, showSpinner } from '@syncfusion/ej2-popups';
 
 DocumentEditor.Inject(CollaborativeEditingHandler);
 @Component({
@@ -14,7 +13,7 @@ DocumentEditor.Inject(CollaborativeEditingHandler);
   standalone: true,
   imports: [DocumentEditorContainerModule, CommonModule, RouterOutlet],
   templateUrl: './app.component.html',
-  styleUrl: './app.component.scss',
+  styleUrls: ['./app.component.scss'],
   providers: [ToolbarService],
 })
 export class AppComponent {
@@ -28,13 +27,17 @@ export class AppComponent {
   public titleBar?: TitleBar;
   public connectionId: string = '';
   public currentUser: string = 'Guest user';
+  public toolbarItems = ['Undo', 'Redo', 'Separator', 'Image', 'Table', 'Hyperlink', 'Bookmark', 'TableOfContents', 'Separator', 'Header', 'Footer', 'PageSetup', 'PageNumber', 'Break', 'InsertFootnote', 'InsertEndnote', 'Separator', 'Find', 'Separator', 'Comments', 'TrackChanges', 'Separator', 'LocalClipboard', 'RestrictEditing', 'Separator', 'FormFields', 'UpdateFields']
+  public users = ["Kathryn Fuller", "Tamer Fuller", "Martin Nancy", "Davolio Leverling", "Nancy Fuller", "Fuller Margaret", "Leverling Andrew"];
 
 
   onCreated() {
-    this.container.documentEditor.documentName = 'Getting Started';
+    const random = Math.floor(Math.random() * this.users.length);
+    this.currentUser = this.users[random];
+    this.container.documentEditor.documentName = 'Gaint Panda';
     //Enable collaborative editing in Document Editor.
     this.container.documentEditor.enableCollaborativeEditing = true;
-    
+    this.collaborativeEditingHandler = this.container.documentEditor.collaborativeEditingHandlerModule;
     //Title bar implementation
     this.titleBar = new TitleBar(document.getElementById('documenteditor_titlebar') as HTMLElement, this.container.documentEditor, true);
     this.titleBar.updateDocumentTitle();
@@ -43,9 +46,6 @@ export class AppComponent {
   }
 
   onContentChange = (args: ContainerContentChangeEventArgs) => {
-    if(isNullOrUndefined(this.collaborativeEditingHandler)) {
-      this.collaborativeEditingHandler = this.container.documentEditor.collaborativeEditingHandlerModule;
-    }
     if (this.collaborativeEditingHandler) {
       //Send the editing action to server
       this.collaborativeEditingHandler.sendActionToServer(args.operations as Operation[])
@@ -78,10 +78,10 @@ export class AppComponent {
         if (this.titleBar) {
           if (action == 'action' || action == 'addUser') {
             //Add the user to title bar when user joins the room
-            this.titleBar.addUser(data);
+            this.titleBar.updateUserInfo(data, 'addUser');
           } else if (action == 'removeUser') {
             //Remove the user from title bar when user leaves the room
-            this.titleBar.removeUser(data);
+            this.titleBar.updateUserInfo(data, 'removeUser');
           }
         }
       }
@@ -91,7 +91,7 @@ export class AppComponent {
   }
 
   openDocument(responseText: string, roomName: string): void {
-    showSpinner(document.getElementById('container') as HTMLElement);
+    
 
     let data = JSON.parse(responseText);
     if (this.container) {
@@ -110,16 +110,18 @@ export class AppComponent {
         }
       });
     }
-    hideSpinner(document.getElementById('container') as HTMLElement);
+    hideSpinner(document.body);
   }
 
   loadDocumentFromServer() {
+    createSpinner({ target: document.body });
+    showSpinner(document.body);
     const queryString = window.location.search;
     const urlParams = new URLSearchParams(queryString);
-    let roomId = urlParams.get('id');
+    let roomId = urlParams.get('roomId');
     if (roomId == null) {
       roomId = Math.random().toString(32).slice(2)
-      window.history.replaceState({}, "", `?id=` + roomId);
+      window.history.replaceState({}, "", `?roomId=` + roomId);
     }
     var httpRequest = new XMLHttpRequest();
     httpRequest.open('Post', this.serviceUrl + 'api/CollaborativeEditing/ImportFile', true);
@@ -130,7 +132,7 @@ export class AppComponent {
           this.openDocument(httpRequest.responseText, roomId as string);
         }
         else {
-          hideSpinner(document.getElementById('container') as HTMLElement);
+          hideSpinner(document.body);
           alert('Fail to load the document');
         }
       }

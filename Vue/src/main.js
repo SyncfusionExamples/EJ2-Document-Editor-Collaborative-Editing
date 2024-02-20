@@ -1,8 +1,14 @@
-import Vue from 'vue'
+import { createApp } from 'vue'
 import App from './App.vue'
+import { createRouter, createWebHashHistory } from 'vue-router'
+import HomeComponent from './components/Home.vue'
+import AboutComponent from './components/About.vue'
 
-Vue.config.productionTip = false
+const routes = [
+    { path: '/', component: HomeComponent },
+    { path: '/about', component: AboutComponent },
+]
 
-new Vue({
-  render: h => h(App),
-}).$mount('#app')
+const router = createRouter({ history: createWebHashHistory(), routes })
+
+createApp(App).use(router).mount('#app')

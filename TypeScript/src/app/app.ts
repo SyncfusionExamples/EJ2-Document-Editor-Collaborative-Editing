@@ -1,20 +1,28 @@
-import { ContainerContentChangeEventArgs, DocumentEditorContainer, CollaborativeEditingHandler, DocumentEditor, Toolbar, Operation } from '@syncfusion/ej2-documenteditor';
+import { ContainerContentChangeEventArgs, DocumentEditorContainer, CollaborativeEditingHandler, DocumentEditor, Toolbar, Operation, ToolbarItem } from '@syncfusion/ej2-documenteditor';
 import { TitleBar } from './title-bar';
-import { hideSpinner, showSpinner } from '@syncfusion/ej2-popups';
+import { createSpinner, hideSpinner, showSpinner } from '@syncfusion/ej2-popups';
 import { HubConnectionBuilder, HttpTransportType, HubConnectionState } from '@microsoft/signalr';
 
 //Collaborative editing controller url
 let serviceUrl = 'http://localhost:5212/';
 let collborativeEditingHandler: CollaborativeEditingHandler;
 let connectionId: string = "";
+let toolbarItems: ToolbarItem[] = ['Undo', 'Redo', 'Separator', 'Image', 'Table', 'Hyperlink', 'Bookmark', 'TableOfContents', 'Separator', 'Header', 'Footer', 'PageSetup', 'PageNumber', 'Break', 'InsertFootnote', 'InsertEndnote', 'Separator', 'Find', 'Separator', 'Comments', 'TrackChanges', 'Separator', 'LocalClipboard', 'RestrictEditing', 'Separator', 'FormFields', 'UpdateFields']
+let users = ["Kathryn Fuller", "Tamer Fuller", "Martin Nancy", "Davolio Leverling", "Nancy Fuller", "Fuller Margaret", "Leverling Andrew"];
+
 
 /**
  * Container component
  */
-let container: DocumentEditorContainer = new DocumentEditorContainer({ height: "590px", enableToolbar: true, showPropertiesPane: false, currentUser: 'Guest User' });
-container.serviceUrl =serviceUrl + 'api/documenteditor/';
+let container: DocumentEditorContainer = new DocumentEditorContainer({ height: "100%", toolbarItems: toolbarItems, enableToolbar: true, currentUser: 'Guest User' });
+container.serviceUrl = serviceUrl + 'api/documenteditor/';
 DocumentEditorContainer.Inject(Toolbar);
 container.appendTo('#container');
+
+
+const random = Math.floor(Math.random() * users.length);
+container.currentUser = users[random];
+container.documentEditor.documentName = 'Gaint Panda';
 
 //Injecting collaborative editing module
 DocumentEditor.Inject(CollaborativeEditingHandler);
@@ -23,7 +31,6 @@ container.documentEditor.enableCollaborativeEditing = true;
 
 //Title bar implementation
 let titleBar: TitleBar = new TitleBar(document.getElementById('documenteditor_titlebar') as HTMLElement, container.documentEditor, true);
-container.documentEditor.documentName = 'Getting Started';
 titleBar.updateDocumentTitle();
 
 container.contentChange = function (args: ContainerContentChangeEventArgs) {
@@ -61,17 +68,16 @@ connection.on('dataReceived', onDataRecived.bind(this));
 //Method to process the data received from server
 function onDataRecived(action: string, data: any) {
     if (collborativeEditingHandler) {
-        debugger;
         if (action == 'connectionId') {
             //Update the current connection id to track other users
             connectionId = data;
         } else if (connectionId != data.connectionId) {
             if (action == 'action' || action == 'addUser') {
                 //Add the user to title bar when user joins the room
-                titleBar.addUser(data);
+                titleBar.updateUserInfo(data, 'addUser');
             } else if (action == 'removeUser') {
                 //Remove the user from title bar when user leaves the room
-                titleBar.removeUser(data);
+                titleBar.updateUserInfo(data, 'removeUser');
             }
         }
         //Apply the remote action in DocumentEditor
@@ -87,13 +93,13 @@ connection.onclose(async () => {
 
 
 function openDocument(responseText: string, roomName: string): void {
-    showSpinner(document.getElementById('container') as HTMLElement);
+    
 
     let data = JSON.parse(responseText);
 
     collborativeEditingHandler = container.documentEditor.collaborativeEditingHandlerModule;
     //Update the room and version information to collaborative editing handler.
-    collborativeEditingHandler.updateRoomInfo(roomName, data.version, serviceUrl+ 'api/CollaborativeEditing/');
+    collborativeEditingHandler.updateRoomInfo(roomName, data.version, serviceUrl + 'api/CollaborativeEditing/');
 
     //Open the document
     container.documentEditor.open(data.sfdt);
@@ -103,10 +109,12 @@ function openDocument(responseText: string, roomName: string): void {
         connectToRoom({ action: 'connect', roomName: roomName, currentUser: container.currentUser });
     });
 
-    hideSpinner(document.getElementById('container') as HTMLElement);
+    hideSpinner(document.body as HTMLElement);
 }
 
 function loadDocumentFromServer() {
+    createSpinner({target:document.body});
+    showSpinner(document.body as HTMLElement);
     const queryString = window.location.search;
     const urlParams = new URLSearchParams(queryString);
     let roomId = urlParams.get('id');
@@ -126,7 +134,7 @@ function loadDocumentFromServer() {
                 openDocument(httpRequest.responseText, roomId as string);
             }
             else {
-                hideSpinner(document.getElementById('container') as HTMLElement);
+                hideSpinner(document.body as HTMLElement);
                 alert('Fail to load the document');
             }
         }

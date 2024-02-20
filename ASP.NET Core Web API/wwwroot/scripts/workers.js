@@ -9,7 +9,7 @@ self.addEventListener('message', function (e) {
 var currentRoomName;
 
 //var serviceUrl = "http://localhost:5212/";
-var serviceUrl = "https://webapplication120230413155843.azurewebsites.net/";
+var serviceUrl = "http://localhost:5212/";
 
 var connection = new signalR.HubConnectionBuilder().withUrl(serviceUrl + 'documenteditorhub', {
     skipNegotiation: true,

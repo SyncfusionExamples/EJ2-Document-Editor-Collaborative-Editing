@@ -1,8 +1,8 @@
 {
-  "name": "@syncfusion/ej2-javascript-sample_template",
+  "name": "@syncfusion/ej2-javascript-collaborative-editing",
   "version": "1.0.0",
-  "description": "Essential JS 2 - Sample name",
-  "main": "index.js",
+  "description": "Essential JS 2 - Collaborative Editing",
+  "main": "app.js",
   "scripts": {
     "build": "webpack --mode production",
     "start": "webpack serve --mode development --open"
