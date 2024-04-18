@@ -70,6 +70,7 @@ export default {
       printIconCss: 'e-de-icon-Print e-de-padding-right',
       userList: undefined,
       userMap: {},
+      currentRoomName : ''
     };
   },
   mounted() {
@@ -120,11 +121,16 @@ export default {
 
       this.connection.onclose(async () => {
         if (this.connection && this.connection.state === HubConnectionState.Disconnected) {
-          alert('Connection lost. Please relod the browser to continue.');
+          //alert('Connection lost. Please relod the browser to continue.');
         }
       });
+      this.connection.onreconnected(() => {
+        if (this.connection && this.currentRoomName != null) {
+          this.connection.send('JoinGroup', { roomName: this.currentRoomName, currentUser: this.currentUser });
+        }
+        console.log('server reconnected!!!');
+      });
     },
-
     onDataRecived(action, data) {
       if (this.collaborativeEditingHandler) {
         if (action == 'connectionId') {
@@ -189,6 +195,7 @@ export default {
     },
     connectToRoom(data) {
       try {
+        this.currentRoomName = data.roomName;
         if (this.connection) {
           // start the connection.
           this.connection.start().then(() => {

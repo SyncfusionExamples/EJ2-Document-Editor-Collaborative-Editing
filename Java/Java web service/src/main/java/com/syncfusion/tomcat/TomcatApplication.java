@@ -2,18 +2,27 @@ package com.syncfusion.tomcat;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.EnableWebMvc;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
 import com.syncfusion.ej2.wordprocessor.WordProcessorHelper;
 import com.syncfusion.ej2.wordprocessor.FormatType;
 
-@SpringBootApplication
+@SpringBootApplication(exclude = { SecurityAutoConfiguration.class })
 @RestController
 public class TomcatApplication extends SpringBootServletInitializer {
 	@Override
@@ -24,11 +33,11 @@ public class TomcatApplication extends SpringBootServletInitializer {
 	public static void main(String[] args) {
 		SpringApplication.run(TomcatApplication.class, args);
 	}
-
+	
 	@CrossOrigin
 	@RequestMapping(value = "/")
 	public String hello() {
-		return "Hello From Syncfusion Document Editor Java Service";
+		return "Hello From Syncfusion Document Editor Java Service";		
 	}
 
 	@CrossOrigin
