@@ -83,7 +83,8 @@ public class CollaborativeEditingController {
 			// editing session.
 			// Room name is a unique identifier of the document for collaborative editing.
 			// We need to maintain the unique ID to map it with the original document to
-			// save it in the S3.
+			// save it in the S3.			
+				
 			ArrayList<ActionInfo> actions = createRecordForCollaborativeEditing(file.getRoomName(),
 					lastSyncedVersion_out);
 
@@ -113,7 +114,8 @@ public class CollaborativeEditingController {
 		ActionInfo transformedAction = addOperationsToTable(param);
 		HashMap<String, Object> action = new HashMap<>();
 		action.put("action", "updateAction");
-		DocumentEditorHub.broadcastToRoom(roomName, transformedAction, new MessageHeaders(action));
+		DocumentEditorHub.publishToRedis(roomName, transformedAction);
+		//DocumentEditorHub.broadcastToRoom(roomName, transformedAction, new MessageHeaders(action));
 		return transformedAction;
 	}
 
@@ -444,7 +446,7 @@ public class CollaborativeEditingController {
 	}
 
 	private static WordProcessorHelper getDocumentFromBucketS3(String documentId, String accessKey, String secretKey,
-			String bucketName) {
+			String bucketName) {	
 		try {
 			AwsCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
 			StaticCredentialsProvider credentialsProvider = StaticCredentialsProvider.create(credentials);

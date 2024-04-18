@@ -21,7 +21,7 @@ export class AppComponent {
   title = 'syncfusion-angular-app';
   @ViewChild("documenteditor_default")
   private container!: DocumentEditorContainerComponent;
-
+  public currentRoomName: string = '';
   private collaborativeEditingHandler!: CollaborativeEditingHandler;
   private serviceUrl: string = "http://localhost:5212/";
   public connection?: HubConnection;
@@ -65,6 +65,13 @@ export class AppComponent {
       if (this.connection && this.connection.state === HubConnectionState.Disconnected) {
         alert('Connection lost. Please relod the browser to continue.');
       }
+    });
+
+    this.connection.onreconnected(() => {
+      if (this.connection && this.currentRoomName != null) {
+        this.connection.send('JoinGroup', { roomName: this.currentRoomName, currentUser: this.currentUser });
+      }
+      console.log('server reconnected!!!');
     });
   }
 
@@ -140,6 +147,7 @@ export class AppComponent {
 
   public connectToRoom(data: any) {
     try {
+      this.currentRoomName = data.roomName;
       if (this.connection) {
         // start the connection.
         this.connection.start().then(() => {

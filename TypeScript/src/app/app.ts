@@ -7,7 +7,7 @@ import { HubConnectionBuilder, HttpTransportType, HubConnectionState } from '@mi
 let serviceUrl = 'http://localhost:5212/';
 let collborativeEditingHandler: CollaborativeEditingHandler;
 let connectionId: string = "";
-
+let currentRoomName: string = '';
 /**
  * Container component
  */
@@ -42,6 +42,7 @@ var connection = new HubConnectionBuilder().withUrl(serviceUrl + 'documenteditor
 
 async function connectToRoom(data: any) {
     try {
+        currentRoomName = data.roomName;
         // start the connection.
         connection.start().then(function () {
             // Join the room.
@@ -54,6 +55,13 @@ async function connectToRoom(data: any) {
         setTimeout(connectToRoom, 5000);
     }
 };
+
+connection.onreconnected(() => {
+    if (currentRoomName != null) {
+        connection.send('JoinGroup', { roomName: currentRoomName, currentUser: container.currentUser });
+    }
+    console.log('server reconnected!!!');
+});
 
 //Event handler for signalR connection
 connection.on('dataReceived', onDataRecived.bind(this));

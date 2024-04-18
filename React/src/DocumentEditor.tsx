@@ -16,6 +16,7 @@ class Editor extends React.Component {
     public connectionId: string = '';
     public connection?: HubConnection;
     public currentUser: string = 'Guest user';
+    public currentRoomName: string  = ''
 
     public componentDidMount(): void {
         window.onbeforeunload = function () {
@@ -56,6 +57,12 @@ class Editor extends React.Component {
             if (this.connection && this.connection.state === HubConnectionState.Disconnected) {
                 alert('Connection lost. Please relod the browser to continue.');
             }
+        });
+        this.connection.onreconnected(() => {
+            if (this.connection && this.currentRoomName != null) {
+                this.connection.send('JoinGroup', { roomName: this.currentRoomName, currentUser: this.currentUser });
+            }
+            console.log('server reconnected!!!');
         });
     }
 
@@ -133,6 +140,7 @@ class Editor extends React.Component {
 
     public connectToRoom(data: any) {
         try {
+            this.currentRoomName = data.roomName;
             if (this.connection) {
                 // start the connection.
                 this.connection.start().then(() => {

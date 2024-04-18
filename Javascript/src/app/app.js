@@ -6,7 +6,7 @@ import { HubConnectionBuilder, HttpTransportType, HubConnectionState } from '@mi
 var serviceUrl = 'http://localhost:5212/';
 var collborativeEditingHandler;
 var connectionId = "";
-
+var currentRoomName = '';
 /**
  * Container component
  */
@@ -37,6 +37,7 @@ var connection = new HubConnectionBuilder().withUrl(serviceUrl + 'documenteditor
 
 async function connectToRoom(data) {
     try {
+        currentRoomName = data.roomName;
         // start the connection.
         connection.start().then(function () {
             // Join the room.
@@ -79,6 +80,13 @@ connection.onclose(async () => {
     }
 });
 
+connection.onreconnected(() => {
+    if (currentRoomName != null) {
+        connection.send('JoinGroup', { roomName: currentRoomName, currentUser: currentUser });
+    }
+    console.log('server reconnected!!!');
+});
+
 function openDocument(responseText, roomName) {
     showSpinner(document.getElementById('container'));
 
@@ -91,6 +99,7 @@ function openDocument(responseText, roomName) {
     //Open the document
     container.documentEditor.open(data.sfdt);
 
+    container.documentEditor.documentName = "Giant Panda";
     setTimeout(function () {
         // connect to server using signalR
         connectToRoom({ action: 'connect', roomName: roomName, currentUser: container.currentUser });

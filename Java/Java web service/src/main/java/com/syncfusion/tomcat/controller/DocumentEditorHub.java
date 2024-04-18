@@ -18,6 +18,11 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import com.syncfusion.ej2.wordprocessor.UserActionInfo;
 import com.syncfusion.tomcat.CollaborativeEditingController;
+
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.exceptions.JedisConnectionException;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.syncfusion.ej2.wordprocessor.ActionInfo;
 
 @Controller
@@ -26,7 +31,8 @@ public class DocumentEditorHub {
 	public static HashMap<String, ActionInfo> actions = new HashMap<String, ActionInfo>();
 	public static final HashMap<String, ArrayList<ActionInfo>> roomList = new HashMap<>();
 	public static SimpMessagingTemplate messagingTemplate;
-
+	private static final int MAX_RETRIES = 5;
+	private static final long RETRY_INTERVAL_MS = 1000;
 	public DocumentEditorHub(SimpMessagingTemplate messagingTemplate) {
 		this.messagingTemplate = messagingTemplate;
 	}
@@ -105,17 +111,32 @@ public class DocumentEditorHub {
 	}
 
 	public static void broadcastToRoom(String roomName, Object payload, MessageHeaders headers) {
-		if (payload instanceof HashMap) {
-			HashMap<String, ActionInfo> actionsMap = (HashMap<String, ActionInfo>) payload;
-			ArrayList<ActionInfo> actionsList = new ArrayList<>(actionsMap.values());
-			// messagingTemplate.convertAndSend("/topic/public/" + roomName, actionsList);
-			messagingTemplate.convertAndSend("/topic/public/" + roomName,
-					MessageBuilder.createMessage(actionsList, headers));
-		} else {
-			// messagingTemplate.convertAndSend("/topic/public/" + roomName, payload);
+		
+		{			
 			messagingTemplate.convertAndSend("/topic/public/" + roomName,
 					MessageBuilder.createMessage(payload, headers));
 		}
-
+	}	
+	public static void publishToRedis(String roomName, Object payload) throws JsonProcessingException {
+		int retries = 0;
+		while (retries < MAX_RETRIES) {
+			try (Jedis jedis = RedisSubscriber.jedisPool.getResource()) {
+				// try(Jedis jedis = RedisSubscriber.jedisConnection){	
+				
+				jedis.publish("collaborativedtiting",
+						new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(payload));
+				System.out.println("Message published to Redis"
+						+ new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(payload));				
+				break;
+			} catch (JedisConnectionException e) {
+				retries++;
+				System.out.println("Connection failed. Retrying in " + RETRY_INTERVAL_MS + " milliseconds...");
+				try {
+					Thread.sleep(RETRY_INTERVAL_MS);
+				} catch (InterruptedException ex) {
+					Thread.currentThread().interrupt();
+				}
+			}
+		}
 	}
 }
