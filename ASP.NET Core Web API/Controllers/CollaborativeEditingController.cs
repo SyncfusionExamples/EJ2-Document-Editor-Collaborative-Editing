@@ -17,6 +17,7 @@ namespace WebApplication1.Controllers
         private readonly IHubContext<DocumentEditorHub> _hubContext;
         private static string connectionString;
         private static string fileLocation;
+        private static byte saveThreshold = 200;
 
         public CollaborativeEditingController(IWebHostEnvironment hostingEnvironment, IHubContext<DocumentEditorHub> hubContext, IConfiguration config)
         {
@@ -35,14 +36,15 @@ namespace WebApplication1.Controllers
         {
             DocumentContent content = new DocumentContent();
             WordDocument document = GetSourceDocument(param.fileName);
-            List<ActionInfo> actions = CreatedTable(param.roomName);
+            int lastSyncedVersion = 0;
+            List<ActionInfo> actions = CreatedTable(param.roomName, out lastSyncedVersion);
             if (actions != null)
             {
                 //Updated pending edit from database to source document.
                 document.UpdateActions(actions);
             }
             string json = Newtonsoft.Json.JsonConvert.SerializeObject(document);
-            content.version = 0;
+            content.version = lastSyncedVersion;
             content.sfdt = json;
             return Newtonsoft.Json.JsonConvert.SerializeObject(content);
         }
@@ -126,51 +128,71 @@ namespace WebApplication1.Controllers
             return document;
         }
 
-        private List<ActionInfo> CreatedTable(string roomName)
+        private List<ActionInfo> CreatedTable(string roomName, out int lastSyncedVersion)
         {
-
+            lastSyncedVersion = 0;
             string tableName = roomName;
             if (!TableExists(tableName))
             {
+
                 string queryString = "CREATE TABLE \"" + tableName + "\" (version int IDENTITY(1,1) PRIMARY KEY, operation nvarchar(max), clientVersion int)";
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
-                    try
-                    {
-                        SqlCommand command = new SqlCommand(queryString, connection);
-                        connection.Open();
-                        command.ExecuteNonQuery();
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(ex.Message);
-                    }
+
+                    SqlCommand command = new SqlCommand(queryString, connection);
+                    connection.Open();
+                    command.ExecuteNonQuery();
+                    // Create table to track the last saved version.
+                    CreateRecordForVersionInfo(connection, roomName);
+
                 }
             }
             else
             {
-                string queryString = "SELECT * FROM \"" + tableName + "\"";
+
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
-                    try
-                    {
-                        SqlCommand command = new SqlCommand(queryString, connection);
-                        connection.Open();
-                        SqlDataReader reader = command.ExecuteReader();
-                        DataTable table = new DataTable();
-                        table.Load(reader);
-                        List<ActionInfo> actions = GetOperationsQueue(table);
-                        return actions;
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(ex.Message);
-                    }
+
+                    connection.Open();
+                    lastSyncedVersion = GetLastedSyncedVersion(connection, tableName);
+                    string queryString = "SELECT * FROM \"" + tableName + "\" WHERE version > " + lastSyncedVersion;
+                    SqlCommand command = new SqlCommand(queryString, connection);
+                    SqlDataReader reader = command.ExecuteReader();
+                    DataTable table = new DataTable();
+                    table.Load(reader);
+                    List<ActionInfo> actions = GetOperationsQueue(table);
+                    return actions;
+
                 }
             }
             return null;
         }
+        private void CreateRecordForVersionInfo(SqlConnection connection, String roomName)
+        {
+            string tableName = "de_version_info";
 
+                if (!TableExists(tableName))
+                {
+                // If table doesn't exist, create it
+                string createTableQuery = $"CREATE TABLE \"{tableName}\" (roomName TEXT, lastSavedVersion INTEGER)";
+                using (SqlCommand createTableCommand = new SqlCommand(createTableQuery, connection))
+                {
+                    createTableCommand.ExecuteNonQuery();
+                }
+            }
+
+            // Insert record into the table
+            string insertQuery = $"INSERT INTO \"{tableName}\" (roomName, lastSavedVersion) VALUES (@roomName, @lastSavedVersion)";
+            using (SqlCommand insertCommand = new SqlCommand(insertQuery, connection))
+            {
+                insertCommand.Parameters.AddWithValue("@roomName", roomName);
+                // Set initial version to 0
+                insertCommand.Parameters.AddWithValue("@lastSavedVersion", 0);
+                insertCommand.ExecuteNonQuery();
+            }
+            //}
+
+        }
         private bool TableExists(string tableName)
         {
             using (var connection = new SqlConnection(connectionString))
@@ -190,44 +212,44 @@ namespace WebApplication1.Controllers
             string query = "INSERT INTO \"" + tableName + "\" (operation, clientVersion) " + "VALUES (@Operation, @ClientVersion); ; SELECT SCOPE_IDENTITY() AS last_id";
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
-                try
+
+                SqlCommand command = new SqlCommand(query, connection);
+                command.Parameters.Add("@Operation", SqlDbType.NVarChar).Value = value;
+                command.Parameters.Add("@ClientVersion", SqlDbType.NVarChar).Value = action.Version;
+                connection.Open();
+                int updateVersion = int.Parse(command.ExecuteScalar().ToString());
+                if (updateVersion - clientVersion == 1)
                 {
-                    SqlCommand command = new SqlCommand(query, connection);
-                    command.Parameters.Add("@Operation", SqlDbType.NVarChar).Value = value;
-                    command.Parameters.Add("@ClientVersion", SqlDbType.NVarChar).Value = action.Version;
-                    connection.Open();
-                    int updateVersion = int.Parse(command.ExecuteScalar().ToString());
-                    if (updateVersion - clientVersion == 1)
-                    {
-                        action.Version = updateVersion;
-                        UpdateCurrentActionToDB(tableName, action, connection);
-                    }
-                    else
-                    {
-                        DataTable table = GetOperationsToTransform(tableName, clientVersion + 1, updateVersion, connection);
-                        int startVersion = int.Parse(table.Rows[0]["version"].ToString());
-                        int lowestVersion = GetLowestClientVersion(table);
-                        if (startVersion > lowestVersion)
-                        {
-                            table = GetOperationsToTransform(tableName, lowestVersion, updateVersion, connection);
-                        }
-                        List<ActionInfo> actions = GetOperationsQueue(table);
-                        foreach (ActionInfo info in actions)
-                        {
-                            if (!info.IsTransformed)
-                            {
-                                CollaborativeEditingHandler.TransformOperation(info, actions);
-                            }
-                        }
-                        action = actions[actions.Count - 1];
-                        action.Version = updateVersion;
-                        UpdateCurrentActionToDB(tableName, actions[actions.Count - 1], connection);
-                    }
+                    action.Version = updateVersion;
+                    UpdateCurrentActionToDB(tableName, action, connection);
                 }
-                catch (Exception ex)
+                else
                 {
-                    Console.WriteLine(ex.Message);
+                    DataTable table = GetOperationsToTransform(tableName, clientVersion + 1, updateVersion, connection);
+                    int startVersion = int.Parse(table.Rows[0]["version"].ToString());
+                    int lowestVersion = GetLowestClientVersion(table);
+                    if (startVersion > lowestVersion)
+                    {
+                        table = GetOperationsToTransform(tableName, lowestVersion, updateVersion, connection);
+                    }
+                    List<ActionInfo> actions = GetOperationsQueue(table);
+                    foreach (ActionInfo info in actions)
+                    {
+                        if (!info.IsTransformed)
+                        {
+                            CollaborativeEditingHandler.TransformOperation(info, actions);
+                        }
+                    }
+                    action = actions[actions.Count - 1];
+                    action.Version = updateVersion;
+                    UpdateCurrentActionToDB(tableName, actions[actions.Count - 1], connection);
                 }
+                if (updateVersion % saveThreshold == 0)
+                {
+                    UpdateOperationsToSourceDocument(tableName, HttpContext.Session.GetString("UserId"), true, updateVersion);
+                }
+
+
             }
             return action;
         }
@@ -309,46 +331,114 @@ namespace WebApplication1.Controllers
         /// <summary>
         /// Update editing operation to source document.
         /// </summary>
-        public static void UpdateOperationsToSourceDocument(string fileName, string userId)
+        public static void UpdateOperationsToSourceDocument(string fileName, string userId, bool partialSave, int endVersion)
         {
-            SqlConnection connection = new SqlConnection(connectionString);
-            connection.Open();
-            string tableName = fileName;
-            string getOperation = "";
-           
-                getOperation = "SELECT * FROM \"" + tableName + "\"";
-            
-            SqlCommand command = new SqlCommand(getOperation, connection);
-            SqlDataReader reader = command.ExecuteReader();
-            DataTable table = new DataTable();
-            table.Load(reader);
-            if (table.Rows.Count > 0)
+            try
             {
-                List<ActionInfo> actions = GetOperationsQueue(table);
-                foreach (ActionInfo info in actions)
+                SqlConnection connection = new SqlConnection(connectionString);
+                connection.Open();
+                string tableName = fileName;
+                int lastSyncedVersion = GetLastedSyncedVersion(connection, fileName);
+                string getOperation = "";
+                if (partialSave)
                 {
-                    if (!info.IsTransformed)
+                    getOperation = "SELECT * FROM \"" + tableName + "\" WHERE version BETWEEN " + (lastSyncedVersion + 1).ToString() + " AND " + endVersion.ToString();
+                    //getOperation = "SELECT Top (" + saveThreshold.ToString() + ") * FROM \"" + tableName + "\"";
+                }
+                else
+                {
+                    getOperation = "SELECT * FROM \"" + tableName + "\" WHERE version > " + lastSyncedVersion;
+                }
+                SqlCommand command = new SqlCommand(getOperation, connection);
+                SqlDataReader reader = command.ExecuteReader();
+                DataTable table = new DataTable();
+                table.Load(reader);
+                if (table.Rows.Count > 0)
+                {
+                    List<ActionInfo> actions = GetOperationsQueue(table);
+                    foreach (ActionInfo info in actions)
                     {
-                        CollaborativeEditingHandler.TransformOperation(info, actions);
+                        if (!info.IsTransformed)
+                        {
+                            CollaborativeEditingHandler.TransformOperation(info, actions);
+                        }
                     }
+                    //CollaborativeEditingHandler handler = new CollaborativeEditingHandler(GetDocumentFromDatabase(fileName, GetSelectedDocumentOwner(userId, fileName, connection)));
+                    var currentDirectory = System.IO.Directory.GetCurrentDirectory();
+                    int index = fileName.LastIndexOf('.');
+                    string type = index > -1 && index < fileName.Length - 1 ?
+                    fileName.Substring(index) : ".docx";
+                    Stream stream1 = System.IO.File.Open(currentDirectory + "\\" + fileName, FileMode.Open, FileAccess.ReadWrite);
+                    Syncfusion.EJ2.DocumentEditor.WordDocument document = Syncfusion.EJ2.DocumentEditor.WordDocument.Load(stream1, GetFormatType(type));
+                    stream1.Close();
+                    CollaborativeEditingHandler handler = new CollaborativeEditingHandler(document);
+                    for (int i = 0; i < actions.Count; i++)
+                    {
+                        //Console.WriteLine(i);
+                        handler.UpdateAction(actions[i]);
+                    }
+                    MemoryStream stream = new MemoryStream();
+                    Syncfusion.DocIO.DLS.WordDocument doc = WordDocument.Save(Newtonsoft.Json.JsonConvert.SerializeObject(handler.Document));
+                    doc.Save(stream, Syncfusion.DocIO.FormatType.Docx);
+                    stream.Position = 0;
+                    byte[] data = stream.ToArray();
+                    System.IO.File.WriteAllBytes(currentDirectory + "\\output.docx", data);
+                    stream.Close();
+                    if (!partialSave)
+                    {
+                        endVersion = actions[actions.Count - 1].Version;
+                    }                  
+                    doc.Close();                    
                 }
-                CollaborativeEditingHandler handler = new CollaborativeEditingHandler(GetSourceDocument(fileName));
-                for (int i = 0; i < actions.Count; i++)
+                if (!partialSave)
                 {
-                    //Apply remote operation to source document
-                    handler.UpdateAction(actions[i]);
-                }
-                MemoryStream stream = new MemoryStream();
-                Syncfusion.DocIO.DLS.WordDocument doc = WordDocument.Save(Newtonsoft.Json.JsonConvert.SerializeObject(handler.Document));
-                doc.Save(stream, Syncfusion.DocIO.FormatType.Docx);
-                stream.Position = 0;
-               //Add code to update modified document to source document location.
-            }
-            //Clear DB record
-            DropTable(fileName, connection);
-            
-        }
+                    DeleteLastModifiedVersion(tableName, connection);
+                    DropTable(fileName, connection);
+                    
+                }else
+                {
+                    UpdateModifiedVersion(tableName, connection, endVersion);
 
+                }
+                
+            }
+            catch (Exception ex)
+            {
+              
+            }
+
+        }
+        static void UpdateModifiedVersion(string roomName, SqlConnection connection, int lastSavedVersion)
+        {
+            string tableName = "de_version_info";
+            string query = "UPDATE [" + tableName + "] SET lastSavedVersion = @lastSavedVersion WHERE roomName = @roomName";
+
+            using (SqlCommand command = new SqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@lastSavedVersion", lastSavedVersion);
+                command.Parameters.AddWithValue("@roomName", roomName);
+                command.ExecuteNonQuery();
+            }
+        }
+        static void DeleteLastModifiedVersion(string roomName, SqlConnection connection)
+        {
+            string tableName = "de_version_info";
+            string query = "DELETE FROM [" + tableName + "] WHERE roomName = @roomName";
+
+            using (SqlCommand command = new SqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@roomName", roomName);
+                command.ExecuteNonQuery();
+            }
+        }
+        private static int GetLastedSyncedVersion(SqlConnection connection, string roomName)
+        {
+            string tableName = "de_version_info";
+            string query = "SELECT lastSavedVersion FROM \"" + tableName + "\" WHERE roomName ='" + roomName + "'";
+            var command = new SqlCommand(query, connection);
+            command.Parameters.Add("@roomName", SqlDbType.NVarChar).Value = roomName;
+            return int.Parse(command.ExecuteScalar().ToString());
+        }
         private static void DropTable(string documentId, SqlConnection connection)
         {
             try
