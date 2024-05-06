@@ -57,8 +57,9 @@ namespace WebApplication1.Hubs
                 if (groupManager[roomName].Count == 0)
                 {
                     groupManager.Remove(roomName);
+                    string userid = Context.GetHttpContext().Session.GetString("UserId");
                     //Handle updating all editing operations for source document
-                    //CollaborativeEditingController.UpdateOperationsToSourceDocument(roomName,  "");
+                    CollaborativeEditingController.UpdateOperationsToSourceDocument(roomName, userid, false, 0);
                 }
             }
 
