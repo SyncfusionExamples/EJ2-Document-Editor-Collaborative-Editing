@@ -1,0 +1,9 @@
+<div>
+  <div id="documenteditor_titlebar" class="e-de-ctn-title" style="height:35px;"></div>
+  <ejs-documenteditorcontainer #documenteditor_default [enableToolbar]="true" (created)="onCreated()"
+    (contentChange)="onContentChange($event)" height="600px" style="display: block;"></ejs-documenteditorcontainer>
+</div>
+
+
+
+<router-outlet></router-outlet>
