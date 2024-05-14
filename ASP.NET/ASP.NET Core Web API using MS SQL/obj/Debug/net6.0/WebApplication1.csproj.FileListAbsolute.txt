@@ -1,0 +1,10 @@
+D:\885296-MySql\EJ2-Document-Editor-Collaborative-Editing\ASP.NET\ASP.NET Core Web API using MS SQL\obj\Debug\net6.0\WebApplication1.csproj.AssemblyReference.cache
+D:\885296-MySql\EJ2-Document-Editor-Collaborative-Editing\ASP.NET\ASP.NET Core Web API using MS SQL\obj\Debug\net6.0\WebApplication1.GeneratedMSBuildEditorConfig.editorconfig
+D:\885296-MySql\EJ2-Document-Editor-Collaborative-Editing\ASP.NET\ASP.NET Core Web API using MS SQL\obj\Debug\net6.0\WebApplication1.AssemblyInfoInputs.cache
+D:\885296-MySql\EJ2-Document-Editor-Collaborative-Editing\ASP.NET\ASP.NET Core Web API using MS SQL\obj\Debug\net6.0\WebApplication1.AssemblyInfo.cs
+D:\885296-MySql\EJ2-Document-Editor-Collaborative-Editing\ASP.NET\ASP.NET Core Web API using MS SQL\obj\Debug\net6.0\WebApplication1.csproj.CoreCompileInputs.cache
+D:\885296-MySql\EJ2-Document-Editor-Collaborative-Editing\ASP.NET\ASP.NET Core Web API using MS SQL\obj\Debug\net6.0\WebApplication1.MvcApplicationPartsAssemblyInfo.cs
+D:\885296-MySql\EJ2-Document-Editor-Collaborative-Editing\ASP.NET\ASP.NET Core Web API using MS SQL\obj\Debug\net6.0\WebApplication1.MvcApplicationPartsAssemblyInfo.cache
+D:\885296-MySql\EJ2-Document-Editor-Collaborative-Editing\ASP.NET\ASP.NET Core Web API using MS SQL\obj\Debug\net6.0\WebApplication1.RazorAssemblyInfo.cache
+D:\885296-MySql\EJ2-Document-Editor-Collaborative-Editing\ASP.NET\ASP.NET Core Web API using MS SQL\obj\Debug\net6.0\WebApplication1.RazorAssemblyInfo.cs
+D:\885296-MySql\EJ2-Document-Editor-Collaborative-Editing\ASP.NET\ASP.NET Core Web API using MS SQL\obj\Debug\net6.0\WebApplication1.sourcelink.json
