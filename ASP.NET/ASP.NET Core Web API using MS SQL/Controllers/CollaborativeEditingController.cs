@@ -415,9 +415,9 @@ namespace WebApplication1.Controllers
                    "SET lastSavedVersion = @lastSavedVersion " +
                    "WHERE roomName = @roomName";
             using (SqlCommand command = new SqlCommand(query, connection))            {
-               
-                command.Parameters.Add("@lastSavedVersion", SqlDbType.Int).Value = lastSavedVersion;
-                command.Parameters.Add("@roomName", SqlDbType.NVarChar).Value = roomName;               
+
+                command.Parameters.AddWithValue("@lastSavedVersion", lastSavedVersion);
+                command.Parameters.AddWithValue("@roomName", roomName);
                 int rowsAffected = command.ExecuteNonQuery();
                 Console.WriteLine($"{rowsAffected} row(s) updated successfully.");               
             }
