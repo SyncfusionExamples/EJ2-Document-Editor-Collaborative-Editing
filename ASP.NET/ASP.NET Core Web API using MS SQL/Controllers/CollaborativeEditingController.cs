@@ -174,7 +174,7 @@ namespace WebApplication1.Controllers
                 if (!TableExists(tableName))
                 {
                 // If table doesn't exist, create it
-                string createTableQuery = $"CREATE TABLE \"{tableName}\" (roomName TEXT, lastSavedVersion INTEGER)";
+                string createTableQuery = $"CREATE TABLE \"{tableName}\" (roomName VARCHAR(MAX), lastSavedVersion INTEGER)";
                 using (SqlCommand createTableCommand = new SqlCommand(createTableQuery, connection))
                 {
                     createTableCommand.ExecuteNonQuery();
@@ -412,12 +412,12 @@ namespace WebApplication1.Controllers
         {
             string tableName = "de_version_info";
             string query = "UPDATE [" + tableName + "] SET lastSavedVersion = @lastSavedVersion WHERE roomName = @roomName";
-
-            using (SqlCommand command = new SqlCommand(query, connection))
+            using (SqlCommand command = new SqlCommand(query, connection)) 
             {
+
                 command.Parameters.AddWithValue("@lastSavedVersion", lastSavedVersion);
                 command.Parameters.AddWithValue("@roomName", roomName);
-                command.ExecuteNonQuery();
+                command.ExecuteNonQuery();                      
             }
         }
         static void DeleteLastModifiedVersion(string roomName, SqlConnection connection)
@@ -436,7 +436,7 @@ namespace WebApplication1.Controllers
             string tableName = "de_version_info";
             string query = "SELECT lastSavedVersion FROM \"" + tableName + "\" WHERE roomName ='" + roomName + "'";
             var command = new SqlCommand(query, connection);
-            command.Parameters.Add("@roomName", SqlDbType.NVarChar).Value = roomName;
+            command.Parameters.Add("@roomName", SqlDbType.NVarChar).Value = roomName;           
             return int.Parse(command.ExecuteScalar().ToString());
         }
         private static void DropTable(string documentId, SqlConnection connection)
