@@ -186,7 +186,10 @@ namespace WebApplication1.Controllers
                 if (!TableExists(tableName))
                 {
                 // If table doesn't exist, create it
-                string createTableQuery = $"CREATE TABLE `{tableName}` (roomName TEXT, lastSavedVersion INT)";
+                string createTableQuery = $"CREATE TABLE `{tableName}` (" +
+                    "`roomName` VARCHAR(255)," +
+                    "`lastSavedVersion` INT" +
+                    ");";
                 using (MySqlCommand createTableCommand = new MySqlCommand(createTableQuery, connection))
                 {
                     createTableCommand.ExecuteNonQuery();

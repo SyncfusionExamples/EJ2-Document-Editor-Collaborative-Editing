@@ -411,15 +411,13 @@ namespace WebApplication1.Controllers
         static void UpdateModifiedVersion(string roomName, SqlConnection connection, int lastSavedVersion)
         {
             string tableName = "de_version_info";
-            string query = $"UPDATE [{tableName}] " +
-                   "SET lastSavedVersion = @lastSavedVersion " +
-                   "WHERE roomName = @roomName";
-            using (SqlCommand command = new SqlCommand(query, connection))            {
+            string query = "UPDATE [" + tableName + "] SET lastSavedVersion = @lastSavedVersion WHERE roomName = @roomName";
+            using (SqlCommand command = new SqlCommand(query, connection)) 
+            {
 
                 command.Parameters.AddWithValue("@lastSavedVersion", lastSavedVersion);
                 command.Parameters.AddWithValue("@roomName", roomName);
-                int rowsAffected = command.ExecuteNonQuery();
-                Console.WriteLine($"{rowsAffected} row(s) updated successfully.");               
+                command.ExecuteNonQuery();                      
             }
         }
         static void DeleteLastModifiedVersion(string roomName, SqlConnection connection)
@@ -436,7 +434,7 @@ namespace WebApplication1.Controllers
         private static int GetLastedSyncedVersion(SqlConnection connection, string roomName)
         {
             string tableName = "de_version_info";
-            string query = "SELECT lastSavedVersion FROM \"" + tableName + "\" WHERE CAST(roomName AS VARCHAR(MAX)) = @roomName";
+            string query = "SELECT lastSavedVersion FROM \"" + tableName + "\" WHERE roomName ='" + roomName + "'";
             var command = new SqlCommand(query, connection);
             command.Parameters.Add("@roomName", SqlDbType.NVarChar).Value = roomName;           
             return int.Parse(command.ExecuteScalar().ToString());
