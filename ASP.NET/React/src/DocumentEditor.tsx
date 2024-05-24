@@ -36,8 +36,7 @@ class Editor extends React.Component {
         window.onbeforeunload = function () {
             return 'Want to save your changes?';
         }
-        if (this.container) {
-            this.container.documentEditor.enableCollaborativeEditing = true;
+        if (this.container) {           
             this.container.documentEditor.pageOutline = '#E0E0E0';
             this.container.documentEditor.acceptTab = true;
             this.container.documentEditor.resize();
