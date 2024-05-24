@@ -1,12 +1,11 @@
 import * as React from 'react';
 import { useRef } from 'react';
-import { DocumentEditorContainerComponent, Toolbar, CollaborativeEditingHandler, DocumentEditorComponent, ContainerContentChangeEventArgs, Operation, Inject } from '@syncfusion/ej2-react-documenteditor';
+import { DocumentEditorContainerComponent, Toolbar, CollaborativeEditingHandler, ContainerContentChangeEventArgs, Operation, Inject, ToolbarItem } from '@syncfusion/ej2-react-documenteditor';
 import { DocumentEditor } from '@syncfusion/ej2-react-documenteditor';
 import { TitleBar } from './title-bar';
 import { HubConnectionBuilder, HttpTransportType, HubConnectionState, HubConnection } from '@microsoft/signalr';
-import { hideSpinner, showSpinner } from '@syncfusion/ej2-popups';
+import { createSpinner, hideSpinner, showSpinner } from '@syncfusion/ej2-popups';
 
-DocumentEditor.Inject(CollaborativeEditingHandler);
 // tslint:disable:max-line-length
 class Editor extends React.Component {
     public serviceUrl = 'http://localhost:5212/';
@@ -16,7 +15,22 @@ class Editor extends React.Component {
     public connectionId: string = '';
     public connection?: HubConnection;
     public currentUser: string = 'Guest user';
-    public currentRoomName: string  = ''
+    public currentRoomName: string = ''
+
+    public onCreated(): void {
+        this.collaborativeEditingHandler = this.container.documentEditor.collaborativeEditingHandlerModule;
+        this.container.contentChange = (args: ContainerContentChangeEventArgs) => {
+            if (this.collaborativeEditingHandler) {
+                //Send the editing action to server
+                this.collaborativeEditingHandler.sendActionToServer(args.operations as Operation[])
+            }
+        }
+        if (!this.connection) {
+            this.initializeSignalR();
+            this.loadDocumentFromServer();
+        }
+        this.titleBar.updateDocumentTitle();
+    }
 
     public componentDidMount(): void {
         window.onbeforeunload = function () {
@@ -28,19 +42,10 @@ class Editor extends React.Component {
             this.container.documentEditor.acceptTab = true;
             this.container.documentEditor.resize();
             this.titleBar = new TitleBar(document.getElementById('documenteditor_titlebar') as HTMLElement, this.container.documentEditor, true);
-            this.titleBar.updateDocumentTitle();
-            this.collaborativeEditingHandler = this.container.documentEditor.collaborativeEditingHandlerModule;
-
-            this.container.contentChange = (args: ContainerContentChangeEventArgs) => {
-                if (this.collaborativeEditingHandler) {
-                    //Send the editing action to server
-                    this.collaborativeEditingHandler.sendActionToServer(args.operations as Operation[])
-                }
-            }
-            if (!this.connection) {
-                this.initializeSignalR();
-                this.loadDocumentFromServer();
-            }
+            //Inject the collaborative editing handler to DocumentEditor
+            DocumentEditor.Inject(CollaborativeEditingHandler);
+            //Enable the collaborative editing in DocumentEditor
+            this.container.documentEditor.enableCollaborativeEditing = true;
         }
     }
 
@@ -68,7 +73,6 @@ class Editor extends React.Component {
 
     public onDataRecived(action: string, data: any) {
         if (this.collaborativeEditingHandler) {
-            debugger;
             if (action == 'connectionId') {
                 //Update the current connection id to track other users
                 this.connectionId = data;
@@ -89,12 +93,9 @@ class Editor extends React.Component {
     }
 
     public openDocument(responseText: string, roomName: string): void {
-        showSpinner(document.getElementById('container') as HTMLElement);
 
         let data = JSON.parse(responseText);
         if (this.container) {
-
-            this.collaborativeEditingHandler = this.container.documentEditor.collaborativeEditingHandlerModule;
             //Update the room and version information to collaborative editing handler.
             this.collaborativeEditingHandler.updateRoomInfo(roomName, data.version, this.serviceUrl + 'api/CollaborativeEditing/');
 
@@ -110,10 +111,12 @@ class Editor extends React.Component {
         }
 
 
-        hideSpinner(document.getElementById('container') as HTMLElement);
+        hideSpinner(document.body);
     }
 
     public loadDocumentFromServer() {
+        createSpinner({ target: document.body });
+        showSpinner(document.body);
         const queryString = window.location.search;
         const urlParams = new URLSearchParams(queryString);
         let roomId = urlParams.get('id');
@@ -128,9 +131,10 @@ class Editor extends React.Component {
             if (httpRequest.readyState === 4) {
                 if (httpRequest.status === 200 || httpRequest.status === 304) {
                     this.openDocument(httpRequest.responseText, roomId as string);
+                    hideSpinner(document.body);
                 }
                 else {
-                    hideSpinner(document.getElementById('container') as HTMLElement);
+                    hideSpinner(document.body);
                     alert('Fail to load the document');
                 }
             }
@@ -164,7 +168,7 @@ class Editor extends React.Component {
             <div>
                 <div id='documenteditor_titlebar' className="e-de-ctn-title"></div>
                 <div id="documenteditor_container_body">
-                    <DocumentEditorContainerComponent id="container" ref={(scope) => { this.container = scope; }} style={{ 'display': 'block' }}
+                    <DocumentEditorContainerComponent id="container" created={this.onCreated.bind(this)} ref={(scope) => { this.container = scope; }} style={{ 'display': 'block' }}
                         height={'590px'} currentUser={this.currentUser} serviceUrl={this.serviceUrl + 'api/documenteditor'} enableToolbar={true} locale='en-US' >
                         <Inject services={[Toolbar]} />
                     </DocumentEditorContainerComponent>
