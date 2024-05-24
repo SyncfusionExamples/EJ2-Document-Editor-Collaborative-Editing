@@ -6,7 +6,7 @@ import { createSpinner, hideSpinner, showSpinner } from '@syncfusion/ej2-popups'
 import * as SockJS from 'sockjs-client';
 import { Stomp, CompatClient } from '@stomp/stompjs';
 
-DocumentEditor.Inject(CollaborativeEditingHandler);
+
 // tslint:disable:max-line-length
 class Editor extends React.Component {
     public serviceUrl = 'http://localhost:8024/';
@@ -21,31 +21,37 @@ class Editor extends React.Component {
     webSocketEndPoint: string = 'http://localhost:8024/ws';
     public stompClient!: CompatClient;
 
+    public onCreated(): void {
+        this.collaborativeEditingHandler = this.container.documentEditor.collaborativeEditingHandlerModule;
+       
+        this.container.contentChange = (args: ContainerContentChangeEventArgs) => {
+            if (this.collaborativeEditingHandler) {
+                //Send the editing action to server
+                this.collaborativeEditingHandler.sendActionToServer(args.operations as Operation[])
+            }
+        }
+        if (!this.stompClient) {
+            const random = Math.floor(Math.random() * this.users.length);
+            this.currentUser = this.users[random];
+            this.container.documentEditor.documentName = 'Gaint Panda';
+            this.initializeSockJs();
+            this.loadDocumentFromServer();
+        }
+        this.titleBar.updateDocumentTitle();
+    }
+
     public componentDidMount(): void {
         window.onbeforeunload = function () {
             return 'Want to save your changes?';
         }
         if (this.container) {
+             //Inject the collaborative editing handler to DocumentEditor
+            DocumentEditor.Inject(CollaborativeEditingHandler);
+            //Enable the collaborative editing in DocumentEditor
             this.container.documentEditor.enableCollaborativeEditing = true;
+        
             this.container.documentEditor.resize();
             this.titleBar = new TitleBar(document.getElementById('documenteditor_titlebar') as HTMLElement, this.container.documentEditor, true);
-
-            this.collaborativeEditingHandler = this.container.documentEditor.collaborativeEditingHandlerModule;
-
-            this.container.contentChange = (args: ContainerContentChangeEventArgs) => {
-                if (this.collaborativeEditingHandler) {
-                    //Send the editing action to server
-                    this.collaborativeEditingHandler.sendActionToServer(args.operations as Operation[])
-                }
-            }
-            if (!this.stompClient) {
-                const random = Math.floor(Math.random() * this.users.length);
-                this.currentUser = this.users[random];
-                this.container.documentEditor.documentName = 'Gaint Panda';
-                this.initializeSockJs();
-                this.loadDocumentFromServer();
-            }
-            this.titleBar.updateDocumentTitle();
         }
     }
 
@@ -167,7 +173,7 @@ class Editor extends React.Component {
             <div id="toast_type"></div>
             <div style={{ "height": "93vh" }}>
                 <div id='documenteditor_titlebar' className="e-de-ctn-title"></div>
-                <DocumentEditorContainerComponent id="container" ref={(scope: DocumentEditorContainerComponent) => { this.container = scope; }} style={{ 'display': 'block' }}
+                <DocumentEditorContainerComponent id="container" created={this.onCreated.bind(this)} ref={(scope: DocumentEditorContainerComponent) => { this.container = scope; }} style={{ 'display': 'block' }}
                     height={'100%'} currentUser={this.currentUser} toolbarItems={this.toolbarItems} serviceUrl={this.serviceUrl + 'api/wordeditor'} enableToolbar={true} locale='en-US' >
                     <Inject services={[Toolbar]} />
                 </DocumentEditorContainerComponent>
