@@ -19,7 +19,6 @@ class Editor extends React.Component {
 
     public onCreated(): void {
         this.collaborativeEditingHandler = this.container.documentEditor.collaborativeEditingHandlerModule;
-        console.log(this.collaborativeEditingHandler);
         this.container.contentChange = (args: ContainerContentChangeEventArgs) => {
             if (this.collaborativeEditingHandler) {
                 //Send the editing action to server
