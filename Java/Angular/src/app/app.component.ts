@@ -22,7 +22,6 @@ export class AppComponent {
   @ViewChild("documenteditor_default")
   private container!: DocumentEditorContainerComponent;
 
-  private collaborativeEditingHandler!: CollaborativeEditingHandler;
   public serviceUrl = 'http://localhost:8024/';
   public titleBar?: TitleBar;
   public connectionId: string = '';
@@ -40,8 +39,7 @@ export class AppComponent {
     this.currentUser = this.users[random];
     this.container.documentEditor.documentName = 'Gaint Panda';
     //Enable collaborative editing in Document Editor.
-    this.container.documentEditor.enableCollaborativeEditing = true;
-    this.collaborativeEditingHandler = this.container.documentEditor.collaborativeEditingHandlerModule;
+    this.container.documentEditor.enableCollaborativeEditing = true;   
     //Title bar implementation
     this.titleBar = new TitleBar(document.getElementById('documenteditor_titlebar') as HTMLElement, this.container.documentEditor, true);
     this.titleBar.updateDocumentTitle();
@@ -50,9 +48,9 @@ export class AppComponent {
   }
 
   onContentChange = (args: ContainerContentChangeEventArgs) => {
-    if (this.collaborativeEditingHandler) {
+    if ( this.container.documentEditor.collaborativeEditingHandlerModule) {
       //Send the editing action to server
-      this.collaborativeEditingHandler.sendActionToServer(args.operations as Operation[])
+      this.container.documentEditor.collaborativeEditingHandlerModule.sendActionToServer(args.operations as Operation[])
     }
   }
 
@@ -79,7 +77,7 @@ export class AppComponent {
   }
 
   onDataRecived(data: any) {
-    if (this.collaborativeEditingHandler) {
+    if (this.container.documentEditor.collaborativeEditingHandlerModule) {
       var content = JSON.parse(data.body);
       const _this = this;
       var action = content.headers['action'];
@@ -104,10 +102,9 @@ export class AppComponent {
   openDocument(responseText: string, roomName: string): void {
     let data = JSON.parse(responseText);
     if (this.container) {
-
-      this.collaborativeEditingHandler = this.container.documentEditor.collaborativeEditingHandlerModule;
+    
       //Update the room and version information to collaborative editing handler.
-      this.collaborativeEditingHandler.updateRoomInfo(roomName, data.version, this.serviceUrl + 'api/collaborativeediting/');
+      this.container.documentEditor.collaborativeEditingHandlerModule.updateRoomInfo(roomName, data.version, this.serviceUrl + 'api/collaborativeediting/');
 
       //Open the document
       this.container.documentEditor.open(data.sfdt);
