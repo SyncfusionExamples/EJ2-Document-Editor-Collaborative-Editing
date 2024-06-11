@@ -5,7 +5,6 @@ import { HubConnectionBuilder, HttpTransportType, HubConnectionState } from '@mi
 
 //Collaborative editing controller url
 let serviceUrl = 'http://localhost:5212/';
-let collborativeEditingHandler: CollaborativeEditingHandler;
 let connectionId: string = "";
 let currentRoomName: string = '';
 /**
@@ -27,9 +26,9 @@ container.documentEditor.documentName = 'Getting Started';
 titleBar.updateDocumentTitle();
 
 container.contentChange = function (args: ContainerContentChangeEventArgs) {
-    if (collborativeEditingHandler) {
+    if (container.documentEditor.collaborativeEditingHandlerModule) {
         //Send the editing action to server
-        collborativeEditingHandler.sendActionToServer(args.operations as Operation[])
+        container.documentEditor.collaborativeEditingHandlerModule.sendActionToServer(args.operations as Operation[])
     }
 }
 
@@ -68,7 +67,7 @@ connection.on('dataReceived', onDataRecived.bind(this));
 
 //Method to process the data received from server
 function onDataRecived(action: string, data: any) {
-    if (collborativeEditingHandler) {
+    if (container.documentEditor.collaborativeEditingHandlerModule) {
         debugger;
         if (action == 'connectionId') {
             //Update the current connection id to track other users
@@ -83,7 +82,7 @@ function onDataRecived(action: string, data: any) {
             }
         }
         //Apply the remote action in DocumentEditor
-        collborativeEditingHandler.applyRemoteAction(action, data);
+        container.documentEditor.collaborativeEditingHandlerModule.applyRemoteAction(action, data);
     }
 }
 
@@ -98,10 +97,9 @@ function openDocument(responseText: string, roomName: string): void {
     showSpinner(document.getElementById('container') as HTMLElement);
 
     let data = JSON.parse(responseText);
-
-    collborativeEditingHandler = container.documentEditor.collaborativeEditingHandlerModule;
+   
     //Update the room and version information to collaborative editing handler.
-    collborativeEditingHandler.updateRoomInfo(roomName, data.version, serviceUrl+ 'api/CollaborativeEditing/');
+    container.documentEditor.collaborativeEditingHandlerModule.updateRoomInfo(roomName, data.version, serviceUrl+ 'api/CollaborativeEditing/');
 
     //Open the document
     container.documentEditor.open(data.sfdt);

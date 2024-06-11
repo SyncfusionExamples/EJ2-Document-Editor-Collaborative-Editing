@@ -6,7 +6,6 @@ import SockJS from 'sockjs-client';
 
 //Collaborative editing controller url
 let serviceUrl = 'http://localhost:8024/';
-let collborativeEditingHandler: CollaborativeEditingHandler;
 let connectionId: string = "";
 let toolbarItems: ToolbarItem[] = ['Undo', 'Redo', 'Separator', 'Image', 'Table', 'Hyperlink', 'Bookmark', 'TableOfContents', 'Separator', 'Header', 'Footer', 'PageSetup', 'PageNumber', 'Break', 'InsertFootnote', 'InsertEndnote', 'Separator', 'Find', 'Separator', 'Comments', 'TrackChanges', 'Separator', 'LocalClipboard', 'RestrictEditing', 'Separator', 'FormFields', 'UpdateFields']
 let users = ["Kathryn Fuller", "Tamer Fuller", "Martin Nancy", "Davolio Leverling", "Nancy Fuller", "Fuller Margaret", "Leverling Andrew"];
@@ -37,9 +36,9 @@ let titleBar: TitleBar = new TitleBar(document.getElementById('documenteditor_ti
 titleBar.updateDocumentTitle();
 
 container.contentChange = function (args: ContainerContentChangeEventArgs) {
-    if (collborativeEditingHandler) {
+    if (container.documentEditor.collaborativeEditingHandlerModule) {
         //Send the editing action to server
-        collborativeEditingHandler.sendActionToServer(args.operations as Operation[])
+        container.documentEditor.collaborativeEditingHandlerModule.sendActionToServer(args.operations as Operation[])
     }
 }
 
@@ -69,7 +68,7 @@ function onConnected() {
 
 //Method to process the data received from server
 function onDataRecived(data: any) {
-    if (collborativeEditingHandler) {
+    if (container.documentEditor.collaborativeEditingHandlerModule) {
         var content = JSON.parse(data.body);
         var action = content.headers['action'];
         debugger;
@@ -105,10 +104,9 @@ function connectToRoom(data: any) {
 
 
 function openDocument(responseText: string, roomName: string): void {
-    let data = JSON.parse(responseText);
-    collborativeEditingHandler = container.documentEditor.collaborativeEditingHandlerModule;
+    let data = JSON.parse(responseText);   
     //Update the room and version information to collaborative editing handler.
-    collborativeEditingHandler.updateRoomInfo(roomName, data.version, serviceUrl + 'api/collaborativeediting/');
+    container.documentEditor.collaborativeEditingHandlerModule.updateRoomInfo(roomName, data.version, serviceUrl + 'api/collaborativeediting/');
     //Open the document
     container.documentEditor.open(data.sfdt);
     setTimeout(function () {
