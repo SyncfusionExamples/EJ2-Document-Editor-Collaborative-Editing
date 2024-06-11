@@ -60,8 +60,7 @@ export default {
   data() {
     return {
       serviceUrl: 'https://ej2services.syncfusion.com/production/web-services/api/documenteditor/',
-      collborativeEditingServiceUrl: "https://webapplication120230413155843.azurewebsites.net/",
-      collaborativeEditingHandler: null,
+      collborativeEditingServiceUrl: "https://webapplication120230413155843.azurewebsites.net/",    
       connection: null,
       documentName: 'Getting Started',
       documentTitle: 'Untitled Document',
@@ -105,9 +104,9 @@ export default {
       this.loadDocumentFromServer();
     },
     onContentChange(args) {
-      if (this.collaborativeEditingHandler) {
+      if (this.$refs.doceditcontainer.ej2Instances.documentEditor.collaborativeEditingHandlerModule) {
         //Send the editing action to server
-        this.collaborativeEditingHandler.sendActionToServer(args.operations)
+        this.$refs.doceditcontainer.ej2Instances.documentEditor.collaborativeEditingHandlerModule.sendActionToServer(args.operations)
       }
     },
     initializeSignalR() {
@@ -132,14 +131,14 @@ export default {
       });
     },
     onDataRecived(action, data) {
-      if (this.collaborativeEditingHandler) {
+      if (this.$refs.doceditcontainer.ej2Instances.documentEditor.collaborativeEditingHandlerModule) {
         if (action == 'connectionId') {
           //Update the current connection id to track other users
           this.connectionId = data;
           this.addUser(data);
         }
         //Apply the remote action in DocumentEditor
-        this.collaborativeEditingHandler.applyRemoteAction(action, data);
+        this.$refs.doceditcontainer.ej2Instances.documentEditor.collaborativeEditingHandlerModule.applyRemoteAction(action, data);
         this.removeUser(data);
       }
     },
@@ -151,9 +150,8 @@ export default {
       let data = JSON.parse(responseText);
       if (this.$refs.doceditcontainer) {
 
-        this.collaborativeEditingHandler = this.$refs.doceditcontainer.ej2Instances.documentEditor.collaborativeEditingHandlerModule;
         //Update the room and version information to collaborative editing handler.
-        this.collaborativeEditingHandler.updateRoomInfo(roomName, data.version, this.collborativeEditingServiceUrl + 'api/CollaborativeEditing/');
+        this.$refs.doceditcontainer.ej2Instances.documentEditor.collaborativeEditingHandlerModule.updateRoomInfo(roomName, data.version, this.collborativeEditingServiceUrl + 'api/CollaborativeEditing/');
 
         //Open the document
         this.$refs.doceditcontainer.ej2Instances.documentEditor.open(data.sfdt);
