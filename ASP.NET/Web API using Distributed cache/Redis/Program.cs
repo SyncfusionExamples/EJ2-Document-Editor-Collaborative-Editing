@@ -1,18 +1,11 @@
 using WebApplication1.Hubs;
 using Microsoft.Azure.SignalR;
+using StackExchange.Redis;
+using WebApplication1.Service;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
-
-builder.Services.AddSignalR();
-
-builder.Services.AddSession(options =>
-{
-    options.Cookie.Name = ".Collaborative.Session";
-    options.IdleTimeout = TimeSpan.FromMinutes(30);
-    options.Cookie.IsEssential = true;
-});
 
 builder.Services.AddCors(options =>
 {
@@ -24,13 +17,36 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddEndpointsApiExplorer();
+var config = builder.Configuration;
+var redisConfig = config.GetSection("ConnectionStrings");
+var connectionString = redisConfig["RedisConnectionString"];
 
-builder.Services.AddSwaggerGen();
+//Configure SignalR
+builder.Services.AddSignalR().AddStackExchangeRedis(connectionString, options =>
+{
+    options.Configuration.ChannelPrefix = "docedit";
+});
+
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = connectionString;
+});
+
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var configuration = ConfigurationOptions.Parse(connectionString, true);
+    return ConnectionMultiplexer.Connect(configuration);
+});
+
+builder.Services.AddSingleton<IBackgroundTaskQueue>(ctx =>
+{
+    //Configure maximum queue capacity.
+    return new BackgroundTaskQueue(200);
+});
+builder.Services.AddHostedService<QueuedHostedService>();
 
 var app = builder.Build();
-
-// Configure the HTTP request pipeline.
 
 app.UseStaticFiles();
 
@@ -43,8 +59,6 @@ app.MapHub<DocumentEditorHub>("/documenteditorhub");
 app.MapControllers();
 
 app.UseAuthorization();
-
-app.UseSession();
 
 app.UseEndpoints(endpoints =>
 {

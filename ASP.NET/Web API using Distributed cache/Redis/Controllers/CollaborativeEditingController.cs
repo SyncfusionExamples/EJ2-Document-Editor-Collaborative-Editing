@@ -3,9 +3,12 @@ using Syncfusion.EJ2.DocumentEditor;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.SignalR;
 using WebApplication1.Hubs;
-using Microsoft.Data.SqlClient;
 using System.Data;
 using Microsoft.CodeAnalysis;
+using StackExchange.Redis;
+using Newtonsoft.Json;
+using WebApplication1.Model;
+using WebApplication1.Service;
 
 namespace WebApplication1.Controllers
 {
@@ -13,52 +16,53 @@ namespace WebApplication1.Controllers
     [ApiController]
     public class CollaborativeEditingController : ControllerBase
     {
+        private static string fileLocation;
+        private IBackgroundTaskQueue saveTaskQueue;
+        private static IConnectionMultiplexer _redisConnection;
         private readonly IWebHostEnvironment _hostingEnvironment;
         private readonly IHubContext<DocumentEditorHub> _hubContext;
-        private static string connectionString;
-        private static string fileLocation;
-        private static byte saveThreshold = 200;
-
-        public CollaborativeEditingController(IWebHostEnvironment hostingEnvironment, IHubContext<DocumentEditorHub> hubContext, IConfiguration config)
+     
+        // Constructor for the CollaborativeEditingController
+        public CollaborativeEditingController(IWebHostEnvironment hostingEnvironment,
+            IHubContext<DocumentEditorHub> hubContext,
+            IConfiguration config, IConnectionMultiplexer redisConnection, IBackgroundTaskQueue taskQueue)
         {
             _hostingEnvironment = hostingEnvironment;
             _hubContext = hubContext;
-            //Database connection string
-            connectionString = config.GetConnectionString("DocumentEditorDatabase");
+            _redisConnection = redisConnection;
             fileLocation = _hostingEnvironment.WebRootPath;
+            saveTaskQueue = taskQueue;
         }
 
         //Import document from wwwroot folder in web server.
         [HttpPost]
         [Route("ImportFile")]
         [EnableCors("AllowAllOrigins")]
-        public string ImportFile([FromBody] FileInfo param)
-        {
-            DocumentContent content = new DocumentContent();
-            WordDocument document = GetSourceDocument(param.fileName);
-            int lastSyncedVersion = 0;
-            List<ActionInfo> actions = CreatedTable(param.roomName, out lastSyncedVersion);
-            if (actions != null)
-            {
-                //Updated pending edit from database to source document.
-                document.UpdateActions(actions);
-            }
-            string json = Newtonsoft.Json.JsonConvert.SerializeObject(document);
-            content.version = lastSyncedVersion;
-            content.sfdt = json;
-            return Newtonsoft.Json.JsonConvert.SerializeObject(content);
-        }
-
-        [HttpPost]
-        [Route("UpdateAction")]
-        [EnableCors("AllowAllOrigins")]
-        public async Task<ActionInfo> UpdateAction([FromBody] ActionInfo param)
+        public async Task<string> ImportFile([FromBody] WebApplication1.Model.FileInfo param)
         {
             try
             {
-                ActionInfo modifiedAction = AddOperationsToTable(param);
-                await _hubContext.Clients.Group(param.RoomName).SendAsync("dataReceived", "action", modifiedAction);
-                return modifiedAction;
+                // Create a new instance of DocumentContent to hold the document data
+                DocumentContent content = new DocumentContent();
+                // Retrieve the source document to be edited
+                // In this case, document is retrieved from the Getting Started.docx file in the wwwroot folder
+                // We can modify the code to retrieve the document from a different location or source.
+                Syncfusion.EJ2.DocumentEditor.WordDocument document = GetSourceDocument();
+                // Get the list of pending operations for the document
+                List<ActionInfo> actions = await GetPendingOperations(param.fileName, 0, -1);
+                if (actions != null && actions.Count > 0)
+                {
+                    // If there are any pending actions, update the document with these actions
+                    document.UpdateActions(actions);
+                }
+                // Serialize the updated document to SFDT format
+                string sfdt = Newtonsoft.Json.JsonConvert.SerializeObject(document);
+                content.version = 0;
+                content.sfdt = sfdt;
+                // Dispose of the document to free resources
+                document.Dispose();
+                // Return the serialized content as a JSON string
+                return Newtonsoft.Json.JsonConvert.SerializeObject(content);
             }
             catch
             {
@@ -67,238 +71,194 @@ namespace WebApplication1.Controllers
         }
 
         [HttpPost]
+        [Route("UpdateAction")]
+        [EnableCors("AllowAllOrigins")]
+        public async Task<ActionInfo> UpdateAction(ActionInfo param)
+        {
+            ActionInfo modifiedAction = await AddOperationsToTable(param);
+            await _hubContext.Clients.Group(param.RoomName).SendAsync("dataReceived", "action", modifiedAction);
+            return modifiedAction;
+        }
+
+
+        [HttpPost]
         [Route("GetActionsFromServer")]
         [EnableCors("AllowAllOrigins")]
-        public string GetActionsFromServer([FromBody] ActionInfo param)
+        public async Task<string> GetActionsFromServer(ActionInfo param)
         {
-            string tableName = param.RoomName;
-            string getOperation = "SELECT * FROM \"" + tableName + "\" WHERE version > " + param.Version;
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            try
             {
-                try
-                {
-                    SqlCommand command2 = new SqlCommand(getOperation, connection);
-                    SqlCommand updateCommand = new SqlCommand(getOperation, connection);
-                    connection.Open();
-                    SqlDataReader reader = updateCommand.ExecuteReader();
-                    DataTable table = new DataTable();
-                    table.Load(reader);
-                    DataTable oldTable = table;
-                    if (table.Rows.Count > 0)
-                    {
-                        int startVersion = int.Parse(table.Rows[0]["version"].ToString());
-                        int lowestVersion = GetLowestClientVersion(table);
-                        if (startVersion > lowestVersion)
-                        {
-                            string updatedOperation = "SELECT * FROM \"" + tableName + "\" WHERE version >= " + lowestVersion;
-                            SqlCommand command = new SqlCommand(updatedOperation, connection);
-                            SqlDataReader reader2 = command.ExecuteReader();
-                            table = new DataTable();
-                            table.Load(reader2);
-                        }
-                        List<ActionInfo> actions = GetOperationsQueue(table);
-                        foreach (ActionInfo info in actions)
-                        {
-                            if (!info.IsTransformed)
-                            {
-                                CollaborativeEditingHandler.TransformOperation(info, actions);
-                            }
-                        }
-                        actions = actions.Where(x => x.Version > param.Version).ToList();
-                        return Newtonsoft.Json.JsonConvert.SerializeObject(actions);
-                    }
-                }
-                catch
-                {
-                    return "{}";
-                }
+                // Initialize necessary variables from the parameters and helper class
+                int saveThreshold = CollaborativeEditingHelper.SaveThreshold;
+                string tableName = param.RoomName;
+                int lastSyncedVersion = param.Version;
+                int clientVersion = param.Version;
+
+                // Retrieve the database connection
+                IDatabase database = _redisConnection.GetDatabase();
+
+                // Fetch actions that are effective and pending based on the last synced version
+                List<ActionInfo> actions = await GetEffectivePendingVersion(tableName, lastSyncedVersion, database);
+
+                // Increment the version for each action sequentially
+                actions.ForEach(action => action.Version = ++clientVersion);
+
+                // Filter actions to only include those that are newer than the client's last known version
+                actions = actions.Where(action => action.Version > lastSyncedVersion).ToList();
+
+                // Transform actions that have not been transformed yet
+                actions.Where(action => !action.IsTransformed).ToList()
+                    .ForEach(action => CollaborativeEditingHandler.TransformOperation(action, actions));
+
+                // Serialize the filtered and transformed actions to JSON and return
+                return Newtonsoft.Json.JsonConvert.SerializeObject(actions);
             }
-            return "{}";
-        }
-
-        private static WordDocument GetSourceDocument(string fileName)
-        {
-            string path = fileLocation + "\\" + fileName;
-            int index = fileName.LastIndexOf('.');
-            string type = index > -1 && index < fileName.Length - 1 ?
-              fileName.Substring(index) : ".docx";
-            Stream stream = System.IO.File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-            WordDocument document = Syncfusion.EJ2.DocumentEditor.WordDocument.Load(stream, GetFormatType(type));
-            stream.Dispose();
-            return document;
-        }
-
-        private List<ActionInfo> CreatedTable(string roomName, out int lastSyncedVersion)
-        {
-            lastSyncedVersion = 0;
-            string tableName = roomName;
-            if (!TableExists(tableName))
+            catch
             {
-
-                string queryString = "CREATE TABLE \"" + tableName + "\" (version int IDENTITY(1,1) PRIMARY KEY, operation nvarchar(max), clientVersion int)";
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                {
-
-                    SqlCommand command = new SqlCommand(queryString, connection);
-                    connection.Open();
-                    command.ExecuteNonQuery();
-                    // Create table to track the last saved version.
-                    CreateRecordForVersionInfo(connection, roomName);
-
-                }
-            }
-            else
-            {
-
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                {
-
-                    connection.Open();
-                    lastSyncedVersion = GetLastedSyncedVersion(connection, tableName);
-                    string queryString = "SELECT * FROM \"" + tableName + "\" WHERE version > " + lastSyncedVersion;
-                    SqlCommand command = new SqlCommand(queryString, connection);
-                    SqlDataReader reader = command.ExecuteReader();
-                    DataTable table = new DataTable();
-                    table.Load(reader);
-                    List<ActionInfo> actions = GetOperationsQueue(table);
-                    return actions;
-
-                }
-            }
-            return null;
-        }
-        private void CreateRecordForVersionInfo(SqlConnection connection, String roomName)
-        {
-            string tableName = "de_version_info";
-
-                if (!TableExists(tableName))
-                {
-                // If table doesn't exist, create it
-                string createTableQuery = $"CREATE TABLE \"{tableName}\" (roomName VARCHAR(MAX), lastSavedVersion INTEGER)";
-                using (SqlCommand createTableCommand = new SqlCommand(createTableQuery, connection))
-                {
-                    createTableCommand.ExecuteNonQuery();
-                }
-            }
-
-            // Insert record into the table
-            string insertQuery = $"INSERT INTO \"{tableName}\" (roomName, lastSavedVersion) VALUES (@roomName, @lastSavedVersion)";
-            using (SqlCommand insertCommand = new SqlCommand(insertQuery, connection))
-            {
-                insertCommand.Parameters.AddWithValue("@roomName", roomName);
-                // Set initial version to 0
-                insertCommand.Parameters.AddWithValue("@lastSavedVersion", 0);
-                insertCommand.ExecuteNonQuery();
-            }
-            //}
-
-        }
-        private bool TableExists(string tableName)
-        {
-            using (var connection = new SqlConnection(connectionString))
-            {
-                var command = new SqlCommand($"SELECT CASE WHEN OBJECT_ID('{tableName}', 'U') IS NOT NULL THEN 1 ELSE 0 END", connection);
-                connection.Open();
-                var result = (int)command.ExecuteScalar();
-                return result == 1;
+                // In case of an exception, return an empty JSON object
+                return "{}";
             }
         }
 
-        private ActionInfo AddOperationsToTable(ActionInfo action)
+        private async Task<ActionInfo> AddOperationsToTable(ActionInfo action)
         {
             int clientVersion = action.Version;
-            string tableName = action.RoomName;
-            string value = Newtonsoft.Json.JsonConvert.SerializeObject(action);
-            string query = "INSERT INTO \"" + tableName + "\" (operation, clientVersion) " + "VALUES (@Operation, @ClientVersion); ; SELECT SCOPE_IDENTITY() AS last_id";
-            using (SqlConnection connection = new SqlConnection(connectionString))
+
+            // Initialize the database connection
+            IDatabase database = _redisConnection.GetDatabase();
+            // Define the keys for Redis operations based on the action's room name
+            RedisKey[] keys = new RedisKey[] { action.RoomName + CollaborativeEditingHelper.VersionSuffix, action.RoomName, action.RoomName + CollaborativeEditingHelper.RevisionSuffix, action.RoomName + CollaborativeEditingHelper.ElementsToBeRemoved };
+            // Serialize the action and prepare values for the Redis script
+            RedisValue[] values = new RedisValue[] { JsonConvert.SerializeObject(action), clientVersion.ToString(), CollaborativeEditingHelper.SaveThreshold.ToString() };
+            // Execute the Lua script in Redis and store the results
+            RedisResult[] results = (RedisResult[])await database.ScriptEvaluateAsync(CollaborativeEditingHelper.InsertScript, keys, values);
+
+            // Parse the version number from the script results
+            int version = int.Parse(results[0].ToString());
+            // Deserialize the list of previous operations from the script results
+            List<ActionInfo> previousOperations = ((RedisResult[])results[1]).Select(value => JsonConvert.DeserializeObject<ActionInfo>(value.ToString())).ToList();
+
+            // Increment the version for each previous operation
+            previousOperations.ForEach(op => op.Version = ++clientVersion);
+
+            // Check if there are multiple previous operations to determine if transformation is needed
+            if (previousOperations.Count > 1)
             {
-
-                SqlCommand command = new SqlCommand(query, connection);
-                command.Parameters.Add("@Operation", SqlDbType.NVarChar).Value = value;
-                command.Parameters.Add("@ClientVersion", SqlDbType.NVarChar).Value = action.Version;
-                connection.Open();
-                int updateVersion = int.Parse(command.ExecuteScalar().ToString());
-                if (updateVersion - clientVersion == 1)
-                {
-                    action.Version = updateVersion;
-                    UpdateCurrentActionToDB(tableName, action, connection);
-                }
-                else
-                {
-                    DataTable table = GetOperationsToTransform(tableName, clientVersion + 1, updateVersion, connection);
-                    int startVersion = int.Parse(table.Rows[0]["version"].ToString());
-                    int lowestVersion = GetLowestClientVersion(table);
-                    if (startVersion > lowestVersion)
-                    {
-                        table = GetOperationsToTransform(tableName, lowestVersion, updateVersion, connection);
-                    }
-                    List<ActionInfo> actions = GetOperationsQueue(table);
-                    foreach (ActionInfo info in actions)
-                    {
-                        if (!info.IsTransformed)
-                        {
-                            CollaborativeEditingHandler.TransformOperation(info, actions);
-                        }
-                    }
-                    action = actions[actions.Count - 1];
-                    action.Version = updateVersion;
-                    UpdateCurrentActionToDB(tableName, actions[actions.Count - 1], connection);
-                }
-                if (updateVersion % saveThreshold == 0)
-                {
-                    UpdateOperationsToSourceDocument(tableName, HttpContext.Session.GetString("UserId"), true, updateVersion);
-                }
-
-
+                // Set the current action to the last operation in the list
+                action = previousOperations.Last();
+                // Transform operations that have not been transformed yet
+                previousOperations.Where(op => !op.IsTransformed).ToList().ForEach(op => CollaborativeEditingHandler.TransformOperation(op, previousOperations));
             }
+            // Update the action's version and mark it as transformed
+            action.Version = version;
+            action.IsTransformed = true;
+            // Update the record in the cache with the new version
+            UpdateRecordToCache(version, action, database);
+
+            // Check if there are cleared operations to be saved
+            if (results.Length > 2 && !results[2].IsNull)
+            {
+                // Deserialize the cleared operations from the results
+                RedisResult[] clearedOperation = (RedisResult[])results[2];
+                List<ActionInfo> actions = new List<ActionInfo>();
+                // Prepare the message fir adding it in background service queue.
+                foreach (var element in clearedOperation)
+                {
+                    actions.Add(JsonConvert.DeserializeObject<ActionInfo>(element.ToString()));
+                }
+                var message = new SaveInfo
+                {
+                    Action = actions,
+                    PartialSave = true,
+                    RoomName = action.RoomName,
+                };
+                // Queue the message for background processing and save the operations to source document in background task
+                _ = saveTaskQueue.QueueBackgroundWorkItemAsync(message);
+            }
+            // Return the updated action
             return action;
         }
 
-        private void UpdateCurrentActionToDB(string tableName, ActionInfo action, SqlConnection connection)
+        private async void UpdateRecordToCache(int version, ActionInfo action, IDatabase database)
         {
-            action.IsTransformed = true;
-            string updateQuery = "UPDATE \"" + tableName + "\" SET operation = @Operation WHERE version = " + action.Version.ToString();
-            SqlCommand updateCommand = new SqlCommand(updateQuery, connection);
-            updateCommand.Parameters.Add("@Operation", SqlDbType.NVarChar).Value = Newtonsoft.Json.JsonConvert.SerializeObject(action);
-            updateCommand.ExecuteNonQuery();
-        }
-
-        private static DataTable GetOperationsToTransform(string tableName, int clientVersion, int currentVersion, SqlConnection connection)
-        {
-            string getOperation = "SELECT * FROM \"" + tableName + "\" WHERE version BETWEEN " + clientVersion + " AND " + currentVersion.ToString();
-            SqlCommand command = new SqlCommand(getOperation, connection);
-            SqlDataReader reader = command.ExecuteReader();
-            DataTable table = new DataTable();
-            table.Load(reader);
-            return table;
-        }
-
-        private static List<ActionInfo> GetOperationsQueue(DataTable table)
-        {
-            List<ActionInfo> actions = new List<ActionInfo>();
-            foreach (DataRow row in table.Rows)
+            // Prepare Redis keys for accessing the room and its revision information
+            RedisKey[] keys = new RedisKey[]
             {
-                ActionInfo action = Newtonsoft.Json.JsonConvert.DeserializeObject<ActionInfo>(row["operation"].ToString());
-                action.Version = int.Parse(row["version"].ToString());
-                action.ClientVersion = int.Parse(row["clientVersion"].ToString());
-                actions.Add(action);
-            }
-            return actions;
+                action.RoomName, // Key for the room's main data
+                action.RoomName + CollaborativeEditingHelper.RevisionSuffix // Key for the room's revision data
+            };
+
+            // Prepare Redis values for the script execution
+            RedisValue[] values = new RedisValue[]
+            {
+                JsonConvert.SerializeObject(action), // Serialize the action to store/update it in Redis
+                (version - 1).ToString(), // Decrement the version to get the previous version for comparison or update
+                CollaborativeEditingHelper.SaveThreshold.ToString() // Convert the save threshold to string for Redis
+            };
+
+            // Execute the Lua script with the prepared keys and values
+            // This script is likely updating the action in the room and possibly handling revision checks or updates
+            await database.ScriptEvaluateAsync(CollaborativeEditingHelper.UpdateRecord, keys, values);
+
+            //List<ActionInfo> cachedActions = await GetPendingOperations(action.RoomName, 0, -1);
+            //Console.Write(cachedActions.Count);
         }
 
-        private static int GetLowestClientVersion(DataTable table)
+        private async Task<List<ActionInfo>> GetEffectivePendingVersion(string roomName, int startIndex, IDatabase databse)
         {
-            int clientVersion = int.Parse(table.Rows[0]["clientVersion"].ToString());
-            foreach (DataRow row in table.Rows)
+
+            // Define Redis keys for accessing the room data and its revision information
+            RedisKey[] keys = new RedisKey[]
             {
-                //TODO: Need to optimise version calculation for only untransformed operations
-                int version = int.Parse(row["clientVersion"].ToString());
-                if (version < clientVersion)
-                {
-                    clientVersion = version;
-                }
-            }
-            return clientVersion;
+                roomName, // Key for the room's actions
+                roomName + CollaborativeEditingHelper.RevisionSuffix // Key for the room's revision data
+            };
+
+            // Prepare Redis values for the script: start index and save threshold
+            RedisValue[] values = new RedisValue[]
+            {
+                startIndex.ToString(), // Convert start index to string for Redis command
+                CollaborativeEditingHelper.SaveThreshold.ToString() // Convert save threshold to string for Redis command
+            };
+
+            // Execute the Lua script on Redis to fetch upcoming actions based on the provided keys and values
+            RedisResult[] upcomingActions = (RedisResult[])await databse.ScriptEvaluateAsync(CollaborativeEditingHelper.EffectivePendingOperations, keys, values);
+
+            // Deserialize the fetched actions from Redis and convert them into a list of ActionInfo objects
+            return upcomingActions.Select(value => JsonConvert.DeserializeObject<ActionInfo>(value.ToString())).ToList();
+        }
+
+        // Method to retrieve pending operations from a Redis list between specified indexes
+        public async Task<List<ActionInfo>> GetPendingOperations(string listKey, long startIndex, long endIndex)
+        {
+            // Get the database connection from the Redis connection multiplexer
+            var db = _redisConnection.GetDatabase();
+            var result = (RedisResult[])await db.ScriptEvaluateAsync(CollaborativeEditingHelper.PendingOperations, new RedisKey[] { listKey, listKey + CollaborativeEditingHelper.ElementsToBeRemoved }, new RedisValue[] { startIndex, endIndex });
+            var processingValues = (RedisResult[])result[0];
+            var listValues = (RedisResult[])result[1];
+
+            // Initialize the list to hold ActionInfo objects
+            var actionInfoList = new List<ActionInfo>();
+
+            // Deserialize the operations from JSON to ActionInfo objects and store in the list
+            actionInfoList.AddRange(processingValues.Select(value => Newtonsoft.Json.JsonConvert.DeserializeObject<ActionInfo>((string)value)));
+
+            // Deserialize the operations from JSON to ActionInfo objects and return as a list
+            actionInfoList.AddRange(listValues.Select(value => Newtonsoft.Json.JsonConvert.DeserializeObject<ActionInfo>((string)value)));
+
+            return actionInfoList;
+        }
+
+        internal static Syncfusion.EJ2.DocumentEditor.WordDocument GetSourceDocument()
+        {
+            string path = fileLocation + "\\Getting Started.docx";
+            int index = path.LastIndexOf('.');
+            string type = index > -1 && index < path.Length - 1 ?
+              path.Substring(index) : ".docx";
+            Stream stream = System.IO.File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            Syncfusion.EJ2.DocumentEditor.WordDocument document = Syncfusion.EJ2.DocumentEditor.WordDocument.Load(stream, GetFormatType(type));
+            stream.Dispose();
+            return document;
         }
 
         internal static FormatType GetFormatType(string format)
@@ -327,155 +287,5 @@ namespace WebApplication1.Controllers
                     throw new NotSupportedException("EJ2 DocumentEditor does not support this file format.");
             }
         }
-
-        /// <summary>
-        /// Update editing operation to source document.
-        /// </summary>
-        public static void UpdateOperationsToSourceDocument(string fileName, string userId, bool partialSave, int endVersion)
-        {
-            try
-            {
-                SqlConnection connection = new SqlConnection(connectionString);
-                connection.Open();
-                string tableName = fileName;
-                int lastSyncedVersion = GetLastedSyncedVersion(connection, fileName);
-                string getOperation = "";
-                if (partialSave)
-                {
-                    getOperation = "SELECT * FROM \"" + tableName + "\" WHERE version BETWEEN " + (lastSyncedVersion + 1).ToString() + " AND " + endVersion.ToString();
-                    //getOperation = "SELECT Top (" + saveThreshold.ToString() + ") * FROM \"" + tableName + "\"";
-                }
-                else
-                {
-                    getOperation = "SELECT * FROM \"" + tableName + "\" WHERE version > " + lastSyncedVersion;
-                }
-                SqlCommand command = new SqlCommand(getOperation, connection);
-                SqlDataReader reader = command.ExecuteReader();
-                DataTable table = new DataTable();
-                table.Load(reader);
-                if (table.Rows.Count > 0)
-                {
-                    List<ActionInfo> actions = GetOperationsQueue(table);
-                    foreach (ActionInfo info in actions)
-                    {
-                        if (!info.IsTransformed)
-                        {
-                            CollaborativeEditingHandler.TransformOperation(info, actions);
-                        }
-                    }
-                    //CollaborativeEditingHandler handler = new CollaborativeEditingHandler(GetDocumentFromDatabase(fileName, GetSelectedDocumentOwner(userId, fileName, connection)));
-                    var currentDirectory = System.IO.Directory.GetCurrentDirectory();
-                    int index = fileName.LastIndexOf('.');
-                    string type = index > -1 && index < fileName.Length - 1 ?
-                    fileName.Substring(index) : ".docx";
-                    Stream stream1 = System.IO.File.Open(currentDirectory + "\\" + fileName, FileMode.Open, FileAccess.ReadWrite);
-                    Syncfusion.EJ2.DocumentEditor.WordDocument document = Syncfusion.EJ2.DocumentEditor.WordDocument.Load(stream1, GetFormatType(type));
-                    stream1.Close();
-                    CollaborativeEditingHandler handler = new CollaborativeEditingHandler(document);
-                    for (int i = 0; i < actions.Count; i++)
-                    {
-                        //Console.WriteLine(i);
-                        handler.UpdateAction(actions[i]);
-                    }
-                    MemoryStream stream = new MemoryStream();
-                    Syncfusion.DocIO.DLS.WordDocument doc = WordDocument.Save(Newtonsoft.Json.JsonConvert.SerializeObject(handler.Document));
-                    doc.Save(stream, Syncfusion.DocIO.FormatType.Docx);
-                    stream.Position = 0;
-                    byte[] data = stream.ToArray();
-                    System.IO.File.WriteAllBytes(currentDirectory + "\\output.docx", data);
-                    stream.Close();
-                    if (!partialSave)
-                    {
-                        endVersion = actions[actions.Count - 1].Version;
-                    }                  
-                    doc.Close();                    
-                }
-                if (!partialSave)
-                {
-                    DeleteLastModifiedVersion(tableName, connection);
-                    DropTable(fileName, connection);
-                    
-                }else
-                {
-                    UpdateModifiedVersion(tableName, connection, endVersion);
-
-                }
-                
-            }
-            catch (Exception ex)
-            {
-              
-            }
-
-        }
-        static void UpdateModifiedVersion(string roomName, SqlConnection connection, int lastSavedVersion)
-        {
-            string tableName = "de_version_info";
-            string query = "UPDATE [" + tableName + "] SET lastSavedVersion = @lastSavedVersion WHERE roomName = @roomName";
-            using (SqlCommand command = new SqlCommand(query, connection)) 
-            {
-
-                command.Parameters.AddWithValue("@lastSavedVersion", lastSavedVersion);
-                command.Parameters.AddWithValue("@roomName", roomName);
-                command.ExecuteNonQuery();                      
-            }
-        }
-        static void DeleteLastModifiedVersion(string roomName, SqlConnection connection)
-        {
-            string tableName = "de_version_info";
-            string query = "DELETE FROM [" + tableName + "] WHERE roomName = @roomName";
-
-            using (SqlCommand command = new SqlCommand(query, connection))
-            {
-                command.Parameters.AddWithValue("@roomName", roomName);
-                command.ExecuteNonQuery();
-            }
-        }
-        private static int GetLastedSyncedVersion(SqlConnection connection, string roomName)
-        {
-            string tableName = "de_version_info";
-            string query = "SELECT lastSavedVersion FROM \"" + tableName + "\" WHERE roomName ='" + roomName + "'";
-            var command = new SqlCommand(query, connection);
-            command.Parameters.Add("@roomName", SqlDbType.NVarChar).Value = roomName;           
-            return int.Parse(command.ExecuteScalar().ToString());
-        }
-        private static void DropTable(string documentId, SqlConnection connection)
-        {
-            try
-            {
-                //Delete operations record.
-                string sqlQuery = "drop table \"" + documentId + "\"";
-                var sqlCommand = new SqlCommand(sqlQuery, connection);
-                sqlCommand.ExecuteNonQuery();
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.ToString());
-            }
-        }
-
-    }
-
-
-    public class FileInfo
-    {
-        public string fileName
-        {
-            get;
-            set;
-        }
-        public string roomName
-        {
-            get;
-            set;
-        }
-
-    }
-
-    public class DocumentContent
-    {
-        public int version { get; set; }
-
-        public string sfdt { get; set; }
     }
 }
