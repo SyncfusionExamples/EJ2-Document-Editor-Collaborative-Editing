@@ -30,7 +30,7 @@
   "dependencies": {
     "@stomp/stompjs": "^7.0.0",
     "@syncfusion/ej2": "*",
-    "@syncfusion/ej2-documenteditor": "^*",
+    "@syncfusion/ej2-documenteditor": "*",
     "@syncfusion/ej2-grids": "*",
     "sockjs-client": "^1.6.1"
   }

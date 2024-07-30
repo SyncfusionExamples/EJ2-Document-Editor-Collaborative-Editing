@@ -22,9 +22,9 @@
   },
   "dependencies": {
     "@stomp/stompjs": "^7.0.0",
-    "@syncfusion/ej2-vue-buttons": "^*",
-    "@syncfusion/ej2-vue-documenteditor": "^*",
-    "@syncfusion/ej2-vue-splitbuttons": "^*",
+    "@syncfusion/ej2-buttons": "^*",
+    "@syncfusion/ej2-documenteditor": "^*",
+    "@syncfusion/ej2-splitbuttons": "^*",
     "sockjs-client": "^1.6.1"
   }
 }

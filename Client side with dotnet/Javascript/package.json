@@ -22,8 +22,8 @@
   },
   "dependencies": {
     "@microsoft/signalr": "^8.0.0",
-    "@syncfusion/ej2-vue-documenteditor": "^*",
-    "@syncfusion/ej2-vue-splitbuttons": "^*",
-    "@syncfusion/ej2-vue-buttons": "^*"
+    "@syncfusion/ej2-documenteditor": "^*",
+    "@syncfusion/ej2-splitbuttons": "^*",
+    "@syncfusion/ej2-buttons": "^*"
   }
 }

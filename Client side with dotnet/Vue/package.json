@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "@microsoft/signalr": "^8.0.0",
-    "@syncfusion/ej2-vue-documenteditor": "^19.84.0",
+    "@syncfusion/ej2-vue-documenteditor": "*",
+    "@syncfusion/ej2-vue-buttons": "*",
     "core-js": "^3.8.3",
     "vue": "^2.6.14"
   },
@@ -20,8 +21,7 @@
     "@vue/cli-plugin-eslint": "~5.0.0",
     "@vue/cli-service": "~5.0.0",
     "eslint": "^7.32.0",
-    "eslint-plugin-vue": "^8.0.3",
-    "vue-template-compiler": "^2.6.14"
+    "eslint-plugin-vue": "^8.0.3"
   },
   "eslintConfig": {
     "root": true,

@@ -47,6 +47,7 @@
 <script>
 import { DocumentEditorContainerComponent, Toolbar, DocumentEditor } from '@syncfusion/ej2-vue-documenteditor';
 import { CollaborativeEditingHandler } from '@syncfusion/ej2-documenteditor';
+import { Tooltip } from '@syncfusion/ej2-popups';
 import { HubConnectionBuilder, HttpTransportType, HubConnectionState } from '@microsoft/signalr';
 import { hideSpinner, showSpinner } from '@syncfusion/ej2-popups';
 import { ButtonComponent } from "@syncfusion/ej2-vue-buttons";

@@ -35,6 +35,6 @@
   "dependencies": {
     "@microsoft/signalr": "^8.0.0",
     "@syncfusion/ej2": "*",
-    "@syncfusion/ej2-documenteditor": "^19.84.0"
+    "@syncfusion/ej2-documenteditor": "*"
   }
 }
