@@ -1,7 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 using Syncfusion.EJ2.DocumentEditor;
-using WebApplication1.Controllers;
 
 namespace WebApplication1.Hubs
 {

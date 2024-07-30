@@ -1,16 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using System.Text;
 using Syncfusion.EJ2.DocumentEditor;
-using WDocument = Syncfusion.DocIO.DLS.WordDocument;
 using WFormatType = Syncfusion.DocIO.FormatType;
 using Syncfusion.EJ2.SpellChecker;
 using Microsoft.AspNetCore.Cors;
-using WebApplication1.Hubs;
-using Microsoft.AspNetCore.Http.Features;
-using System.Net.Http.Headers;
-using Microsoft.Data.SqlClient;
-using System.Data;
-using System.Text.RegularExpressions;
 
 namespace WebApplication1.Controllers
 {

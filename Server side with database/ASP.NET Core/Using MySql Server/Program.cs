@@ -7,13 +7,6 @@ builder.Services.AddControllersWithViews();
 
 builder.Services.AddSignalR();
 
-builder.Services.AddSession(options =>
-{
-    options.Cookie.Name = ".Collaborative.Session";
-    options.IdleTimeout = TimeSpan.FromMinutes(30);
-    options.Cookie.IsEssential = true;
-});
-
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAllOrigins", builder =>
@@ -25,8 +18,6 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddEndpointsApiExplorer();
-
-builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
@@ -43,8 +34,6 @@ app.MapHub<DocumentEditorHub>("/documenteditorhub");
 app.MapControllers();
 
 app.UseAuthorization();
-
-app.UseSession();
 
 app.UseEndpoints(endpoints =>
 {

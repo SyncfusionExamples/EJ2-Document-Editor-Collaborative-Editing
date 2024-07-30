@@ -3,11 +3,9 @@ using Syncfusion.EJ2.DocumentEditor;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.SignalR;
 using WebApplication1.Hubs;
-using Microsoft.Data.SqlClient;
 using System.Data;
 using Microsoft.CodeAnalysis;
 using MySql.Data.MySqlClient;
-using Microsoft.AspNetCore.Http;
 
 namespace WebApplication1.Controllers
 {

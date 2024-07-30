@@ -3,13 +3,9 @@ using Syncfusion.EJ2.DocumentEditor;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.SignalR;
 using WebApplication1.Hubs;
-using Microsoft.Data.SqlClient;
 using System.Data;
 using Microsoft.CodeAnalysis;
 using Npgsql;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
-using Newtonsoft.Json.Linq;
 
 namespace WebApplication1.Controllers
 {
