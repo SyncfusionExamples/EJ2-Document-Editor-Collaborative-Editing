@@ -117,10 +117,15 @@ namespace WebApplication1.Model
 
              -- Retrieve the current revision number from Redis
              local revision = redis.call('GET', revisionKey)
-
+             if not revision then
+                revision = 0
+             else
+                revision = tonumber(revision)
+             end
              -- Calculate the effective version by multiplying the revision number by the threshold
              -- This helps in determining the actual version of the document considering the revisions
-             local effectiveVersion = tonumber(revision) * threshold
+             local effectiveVersion = revision * threshold
+
 
              -- Adjust the client's version by subtracting the effective version
              -- This calculation aligns the client's version with the server's version, accounting for any revisions
@@ -128,7 +133,11 @@ namespace WebApplication1.Model
 
              -- Return a range of list elements starting from the adjusted client version to the end of the list
              -- This command retrieves all operations that have occurred since the client's last known state
-             return redis.call('LRANGE', listKey, clientVersion, -1)";
+             if clientVersion >= 0 then
+                return redis.call('LRANGE', listKey, clientVersion, -1)
+            else
+                return {}
+            end";
 
         internal static string PendingOperations = @"
             local listKey = KEYS[1]
