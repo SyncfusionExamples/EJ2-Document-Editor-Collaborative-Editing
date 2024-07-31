@@ -47,11 +47,11 @@ namespace WebApplication1.Service
             if (!workItem.PartialSave)
             {
                 await database.KeyDeleteAsync(workItem.RoomName);
-                await database.KeyDeleteAsync(workItem.RoomName + CollaborativeEditingHelper.RevisionSuffix);
-                await database.KeyDeleteAsync(workItem.RoomName + CollaborativeEditingHelper.VersionSuffix);
+                await database.KeyDeleteAsync(workItem.RoomName + CollaborativeEditingHelper.RevisionInfoSuffix);
+                await database.KeyDeleteAsync(workItem.RoomName + CollaborativeEditingHelper.VersionInfoSuffix);
             }
             //Clear operations from redis cache.
-            await database.KeyDeleteAsync(workItem.RoomName + CollaborativeEditingHelper.ElementsToBeRemoved);
+            await database.KeyDeleteAsync(workItem.RoomName + CollaborativeEditingHelper.ActionsToRemoveSuffix);
         }
 
         public void ApplyOperationsToSourceDocument(List<ActionInfo> actions)

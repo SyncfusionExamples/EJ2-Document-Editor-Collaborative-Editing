@@ -47,7 +47,7 @@ namespace WebApplication1.Hubs
             await _db.HashSetAsync(info.RoomName + CollaborativeEditingHelper.UserInfoSuffix, Context.ConnectionId, JsonConvert.SerializeObject(info));
 
             // Store the room name with the connection ID
-            await _db.HashSetAsync(CollaborativeEditingHelper.ConnectionIdToRoomMapping, Context.ConnectionId, info.RoomName);
+            await _db.HashSetAsync(CollaborativeEditingHelper.ConnectionIdRoomMappingKey, Context.ConnectionId, info.RoomName);
 
             // Notify all the exsisiting users in the group about the new user
             await Clients.GroupExcept(info.RoomName, Context.ConnectionId).SendAsync("dataReceived", "addUser", info);
@@ -55,7 +55,7 @@ namespace WebApplication1.Hubs
         public override async Task OnDisconnectedAsync(Exception? e)
         {
             //Get the room name associated with the connection ID
-            string roomName = await _db.HashGetAsync(CollaborativeEditingHelper.ConnectionIdToRoomMapping, Context.ConnectionId);
+            string roomName = await _db.HashGetAsync(CollaborativeEditingHelper.ConnectionIdRoomMappingKey, Context.ConnectionId);
             //  Remove user from Redis       
             await _db.HashDeleteAsync(roomName + CollaborativeEditingHelper.UserInfoSuffix, Context.ConnectionId);
 
@@ -65,27 +65,30 @@ namespace WebApplication1.Hubs
             var userList = allUsers.Select(u => JsonConvert.DeserializeObject<ActionInfo>(u.Value)).ToList();
 
             // Remove connection to room name mapping
-            await _db.HashDeleteAsync(CollaborativeEditingHelper.ConnectionIdToRoomMapping, Context.ConnectionId);
+            await _db.HashDeleteAsync(CollaborativeEditingHelper.ConnectionIdRoomMappingKey, Context.ConnectionId);
 
 
             if (userList.Count == 0)
             {
-                // Auto save the document
+                // Auto save the pending operations to source document
                 RedisValue[] pendingOps = await _db.ListRangeAsync(roomName, 0, -1);
-                List<ActionInfo> actions = new List<ActionInfo>();
-                // Prepare the message fir adding it in background service queue.
-                foreach (var element in pendingOps)
+                if (pendingOps.Length > 0)
                 {
-                    actions.Add(JsonConvert.DeserializeObject<ActionInfo>(element.ToString()));
+                    List<ActionInfo> actions = new List<ActionInfo>();
+                    // Prepare the message fir adding it in background service queue.
+                    foreach (var element in pendingOps)
+                    {
+                        actions.Add(JsonConvert.DeserializeObject<ActionInfo>(element.ToString()));
+                    }
+                    var message = new SaveInfo
+                    {
+                        Action = actions,
+                        PartialSave = false,
+                        RoomName = roomName,
+                    };
+                    // Queue the message for background processing and save the operations to source document in background task
+                    _ = saveTaskQueue.QueueBackgroundWorkItemAsync(message);
                 }
-                var message = new SaveInfo
-                {
-                    Action = actions,
-                    PartialSave = false,
-                    RoomName = roomName,
-                };
-                // Queue the message for background processing and save the operations to source document in background task
-                _ = saveTaskQueue.QueueBackgroundWorkItemAsync(message);
             }
             else
             {

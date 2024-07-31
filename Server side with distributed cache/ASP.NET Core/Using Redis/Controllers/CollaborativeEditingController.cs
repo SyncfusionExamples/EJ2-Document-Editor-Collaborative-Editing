@@ -21,7 +21,7 @@ namespace WebApplication1.Controllers
         private static IConnectionMultiplexer _redisConnection;
         private readonly IWebHostEnvironment _hostingEnvironment;
         private readonly IHubContext<DocumentEditorHub> _hubContext;
-     
+
         // Constructor for the CollaborativeEditingController
         public CollaborativeEditingController(IWebHostEnvironment hostingEnvironment,
             IHubContext<DocumentEditorHub> hubContext,
@@ -45,7 +45,7 @@ namespace WebApplication1.Controllers
                 // Create a new instance of DocumentContent to hold the document data
                 DocumentContent content = new DocumentContent();
                 // Retrieve the source document to be edited
-                // In this case, document is retrieved from the Getting Started.docx file in the wwwroot folder
+                // In this case, 'Giant Panda.docx' file from the wwwroot folder is opened.
                 // We can modify the code to retrieve the document from a different location or source.
                 Syncfusion.EJ2.DocumentEditor.WordDocument document = GetSourceDocument();
                 // Get the list of pending operations for the document
@@ -75,7 +75,7 @@ namespace WebApplication1.Controllers
         [EnableCors("AllowAllOrigins")]
         public async Task<ActionInfo> UpdateAction(ActionInfo param)
         {
-            ActionInfo modifiedAction = await AddOperationsToTable(param);
+            ActionInfo modifiedAction = await AddOperationsToCache(param);
             await _hubContext.Clients.Group(param.RoomName).SendAsync("dataReceived", "action", modifiedAction);
             return modifiedAction;
         }
@@ -89,8 +89,8 @@ namespace WebApplication1.Controllers
             try
             {
                 // Initialize necessary variables from the parameters and helper class
-                int saveThreshold = CollaborativeEditingHelper.SaveThreshold;
-                string tableName = param.RoomName;
+                int saveThreshold = CollaborativeEditingHelper.MaxOperationQueueLimit;
+                string roomName = param.RoomName;
                 int lastSyncedVersion = param.Version;
                 int clientVersion = param.Version;
 
@@ -98,7 +98,7 @@ namespace WebApplication1.Controllers
                 IDatabase database = _redisConnection.GetDatabase();
 
                 // Fetch actions that are effective and pending based on the last synced version
-                List<ActionInfo> actions = await GetEffectivePendingVersion(tableName, lastSyncedVersion, database);
+                List<ActionInfo> actions = await GetEffectivePendingVersion(roomName, lastSyncedVersion, database);
 
                 // Increment the version for each action sequentially
                 actions.ForEach(action => action.Version = ++clientVersion);
@@ -120,16 +120,16 @@ namespace WebApplication1.Controllers
             }
         }
 
-        private async Task<ActionInfo> AddOperationsToTable(ActionInfo action)
+        private async Task<ActionInfo> AddOperationsToCache(ActionInfo action)
         {
             int clientVersion = action.Version;
 
             // Initialize the database connection
             IDatabase database = _redisConnection.GetDatabase();
             // Define the keys for Redis operations based on the action's room name
-            RedisKey[] keys = new RedisKey[] { action.RoomName + CollaborativeEditingHelper.VersionSuffix, action.RoomName, action.RoomName + CollaborativeEditingHelper.RevisionSuffix, action.RoomName + CollaborativeEditingHelper.ElementsToBeRemoved };
+            RedisKey[] keys = new RedisKey[] { action.RoomName + CollaborativeEditingHelper.VersionInfoSuffix, action.RoomName, action.RoomName + CollaborativeEditingHelper.RevisionInfoSuffix, action.RoomName + CollaborativeEditingHelper.ActionsToRemoveSuffix };
             // Serialize the action and prepare values for the Redis script
-            RedisValue[] values = new RedisValue[] { JsonConvert.SerializeObject(action), clientVersion.ToString(), CollaborativeEditingHelper.SaveThreshold.ToString() };
+            RedisValue[] values = new RedisValue[] { JsonConvert.SerializeObject(action), clientVersion.ToString(), CollaborativeEditingHelper.MaxOperationQueueLimit.ToString() };
             // Execute the Lua script in Redis and store the results
             RedisResult[] results = (RedisResult[])await database.ScriptEvaluateAsync(CollaborativeEditingHelper.InsertScript, keys, values);
 
@@ -185,7 +185,7 @@ namespace WebApplication1.Controllers
             RedisKey[] keys = new RedisKey[]
             {
                 action.RoomName, // Key for the room's main data
-                action.RoomName + CollaborativeEditingHelper.RevisionSuffix // Key for the room's revision data
+                action.RoomName + CollaborativeEditingHelper.RevisionInfoSuffix // Key for the room's revision data
             };
 
             // Prepare Redis values for the script execution
@@ -193,7 +193,7 @@ namespace WebApplication1.Controllers
             {
                 JsonConvert.SerializeObject(action), // Serialize the action to store/update it in Redis
                 (version - 1).ToString(), // Decrement the version to get the previous version for comparison or update
-                CollaborativeEditingHelper.SaveThreshold.ToString() // Convert the save threshold to string for Redis
+                CollaborativeEditingHelper.MaxOperationQueueLimit.ToString() // Convert the save threshold to string for Redis
             };
 
             // Execute the Lua script with the prepared keys and values
@@ -211,14 +211,14 @@ namespace WebApplication1.Controllers
             RedisKey[] keys = new RedisKey[]
             {
                 roomName, // Key for the room's actions
-                roomName + CollaborativeEditingHelper.RevisionSuffix // Key for the room's revision data
+                roomName + CollaborativeEditingHelper.RevisionInfoSuffix // Key for the room's revision data
             };
 
             // Prepare Redis values for the script: start index and save threshold
             RedisValue[] values = new RedisValue[]
             {
                 startIndex.ToString(), // Convert start index to string for Redis command
-                CollaborativeEditingHelper.SaveThreshold.ToString() // Convert save threshold to string for Redis command
+                CollaborativeEditingHelper.MaxOperationQueueLimit.ToString() // Convert save threshold to string for Redis command
             };
 
             // Execute the Lua script on Redis to fetch upcoming actions based on the provided keys and values
@@ -233,7 +233,7 @@ namespace WebApplication1.Controllers
         {
             // Get the database connection from the Redis connection multiplexer
             var db = _redisConnection.GetDatabase();
-            var result = (RedisResult[])await db.ScriptEvaluateAsync(CollaborativeEditingHelper.PendingOperations, new RedisKey[] { listKey, listKey + CollaborativeEditingHelper.ElementsToBeRemoved }, new RedisValue[] { startIndex, endIndex });
+            var result = (RedisResult[])await db.ScriptEvaluateAsync(CollaborativeEditingHelper.PendingOperations, new RedisKey[] { listKey, listKey + CollaborativeEditingHelper.ActionsToRemoveSuffix }, new RedisValue[] { startIndex, endIndex });
             var processingValues = (RedisResult[])result[0];
             var listValues = (RedisResult[])result[1];
 
@@ -251,7 +251,7 @@ namespace WebApplication1.Controllers
 
         internal static Syncfusion.EJ2.DocumentEditor.WordDocument GetSourceDocument()
         {
-            string path = fileLocation + "\\Getting Started.docx";
+            string path = fileLocation + "\\Giant Panda.docx";
             int index = path.LastIndexOf('.');
             string type = index > -1 && index < path.Length - 1 ?
               path.Substring(index) : ".docx";

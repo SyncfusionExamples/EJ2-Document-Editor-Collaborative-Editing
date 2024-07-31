@@ -6,22 +6,22 @@ namespace WebApplication1.Model
     {
         // Maximum number of operation we can queue in redis cache.
         // If we reach this limit, we will save the operations to source document.
-        internal static int SaveThreshold = 100;
+        internal static int MaxOperationQueueLimit = 100;
 
         // Suffix key to store revision information in redis cache.
-        internal static string RevisionSuffix = "_revision_info";
+        internal static string RevisionInfoSuffix = "_revision_info";
 
         // Suffix key to store version information in redis cache.
-        internal static string VersionSuffix = "_version_info";
+        internal static string VersionInfoSuffix = "_version_info";
 
         // Suffix key to store user information in redis cache.
         internal static string UserInfoSuffix = "_user_info";
 
         // Key to store room information with conncetion Id in redis cache.
-        internal static string ConnectionIdToRoomMapping = "ConnectionIdToRoomMapping";
+        internal static string ConnectionIdRoomMappingKey = "ej_de_connection_id_room_mapping";
 
         // Suffix key to store removed actions information in redis cache.
-        internal static string ElementsToBeRemoved = "_elements_to_be_removed";
+        internal static string ActionsToRemoveSuffix = "_actions_to_remove";
 
         internal static string InsertScript = @"
                 -- Define keys for version, list, and revision
@@ -104,8 +104,7 @@ namespace WebApplication1.Model
             -- This effectively 'inserts' the item into the list at the position reflecting the client's view of the list
             redis.call('LSET', listKey, clientVersion, item)";
 
-
-            internal static string EffectivePendingOperations = @"
+        internal static string EffectivePendingOperations = @"
              -- Define the keys for accessing the list and revision in Redis
              local listKey = KEYS[1]
              local revisionKey = KEYS[2]
