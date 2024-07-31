@@ -10,9 +10,6 @@ Collaborative editing Web API actions are supported in below platforms
 
 Please find the sample and documentation links below.
 
-
-|Platf||||
-
  |Platform| UG links| Sample link |
  |----|----|----|
  |ASP.NET Core| <ul><li>[TypeScript](https://ej2.syncfusion.com/documentation/document-editor/collaborative-editing/using-dot-net)</li><li>[JavaScript](https://ej2.syncfusion.com/javascript/documentation/document-editor/collaborative-editing/using-dot-net)</li><li>[Vue](https://ej2.syncfusion.com/vue/documentation/document-editor/collaborative-editing/using-dot-net)</li><li>[Angular](https://ej2.syncfusion.com/angular/documentation/document-editor/collaborative-editing/using-dot-net)</li><li>[React](https://ej2.syncfusion.com/react/documentation/document-editor/collaborative-editing/using-dot-net)</li></ul> | <ul><li>[ASP.NET Core Web API](https://github.com/SyncfusionExamples/EJ2-Document-Editor-Collaborative-Editing/tree/master/Server%20side%20with%20database/ASP.NET%20Core)</li><li>[TypeScript](https://github.com/SyncfusionExamples/EJ2-Document-Editor-Collaborative-Editing/tree/master/Client%20side%20with%20dotnet/TypeScript)</li><li>[JavaScript](https://github.com/SyncfusionExamples/EJ2-Document-Editor-Collaborative-Editing/tree/master/Client%20side%20with%20dotnet/JavaScript)</li><li>[Vue](https://github.com/SyncfusionExamples/EJ2-Document-Editor-Collaborative-Editing/tree/master/Client%20side%20with%20dotnet/Vue)</li><li>[Angular](https://github.com/SyncfusionExamples/EJ2-Document-Editor-Collaborative-Editing/tree/master/Client%20side%20with%20dotnet/Angular)</li><li>[React](https://github.com/SyncfusionExamples/EJ2-Document-Editor-Collaborative-Editing/tree/master/Client%20side%20with%20dotnet/React)</li></ul> | 
