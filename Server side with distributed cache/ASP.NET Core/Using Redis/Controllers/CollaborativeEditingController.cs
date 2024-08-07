@@ -89,7 +89,7 @@ namespace WebApplication1.Controllers
             try
             {
                 // Initialize necessary variables from the parameters and helper class
-                int saveThreshold = CollaborativeEditingHelper.MaxOperationQueueLimit;
+                int saveThreshold = CollaborativeEditingHelper.SaveThreshold;
                 string roomName = param.RoomName;
                 int lastSyncedVersion = param.Version;
                 int clientVersion = param.Version;
@@ -129,7 +129,7 @@ namespace WebApplication1.Controllers
             // Define the keys for Redis operations based on the action's room name
             RedisKey[] keys = new RedisKey[] { action.RoomName + CollaborativeEditingHelper.VersionInfoSuffix, action.RoomName, action.RoomName + CollaborativeEditingHelper.RevisionInfoSuffix, action.RoomName + CollaborativeEditingHelper.ActionsToRemoveSuffix };
             // Serialize the action and prepare values for the Redis script
-            RedisValue[] values = new RedisValue[] { JsonConvert.SerializeObject(action), clientVersion.ToString(), CollaborativeEditingHelper.MaxOperationQueueLimit.ToString() };
+            RedisValue[] values = new RedisValue[] { JsonConvert.SerializeObject(action), clientVersion.ToString(), CollaborativeEditingHelper.SaveThreshold.ToString() };
             // Execute the Lua script in Redis and store the results
             RedisResult[] results = (RedisResult[])await database.ScriptEvaluateAsync(CollaborativeEditingHelper.InsertScript, keys, values);
 
@@ -193,7 +193,7 @@ namespace WebApplication1.Controllers
             {
                 JsonConvert.SerializeObject(action), // Serialize the action to store/update it in Redis
                 (version - 1).ToString(), // Decrement the version to get the previous version for comparison or update
-                CollaborativeEditingHelper.MaxOperationQueueLimit.ToString() // Convert the save threshold to string for Redis
+                CollaborativeEditingHelper.SaveThreshold.ToString() // Convert the save threshold to string for Redis
             };
 
             // Execute the Lua script with the prepared keys and values
@@ -218,7 +218,7 @@ namespace WebApplication1.Controllers
             RedisValue[] values = new RedisValue[]
             {
                 startIndex.ToString(), // Convert start index to string for Redis command
-                CollaborativeEditingHelper.MaxOperationQueueLimit.ToString() // Convert save threshold to string for Redis command
+                CollaborativeEditingHelper.SaveThreshold.ToString() // Convert save threshold to string for Redis command
             };
 
             // Execute the Lua script on Redis to fetch upcoming actions based on the provided keys and values

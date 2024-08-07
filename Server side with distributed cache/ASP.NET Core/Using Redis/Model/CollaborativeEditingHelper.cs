@@ -6,7 +6,7 @@ namespace WebApplication1.Model
     {
         // Maximum number of operation we can queue in redis cache.
         // If we reach this limit, we will save the operations to source document.
-        internal static int MaxOperationQueueLimit = 100;
+        internal static int SaveThreshold = 100;
 
         // Suffix key to store revision information in redis cache.
         internal static string RevisionInfoSuffix = "_revision_info";
