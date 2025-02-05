@@ -78,7 +78,7 @@ public class CollaborativeEditingController {
 
 	@CrossOrigin(origins = "*", allowedHeaders = "*")
 	@PostMapping("/api/collaborativeediting/ImportFile")
-	public String ImportFile(@RequestBody FilesPathInfo file) throws Exception {
+	public String importFile(@RequestBody FilesPathInfo file) throws Exception {
 		try {
 			ClassLoader classLoader = getClass().getClassLoader();
 			WordProcessorHelper document = getDocumentFromBucketS3(file.getFileName(), datasourceAccessKey,
@@ -126,7 +126,7 @@ public class CollaborativeEditingController {
 
 	@CrossOrigin(origins = "*", allowedHeaders = "*")
 	@PostMapping("/api/collaborativeediting/UpdateAction")
-	public ActionInfo UpdateAction(@RequestBody ActionInfo param) throws Exception {
+	public ActionInfo updateAction(@RequestBody ActionInfo param) throws Exception {
 		String roomName = param.getRoomName();
 		ActionInfo transformedAction = addOperationsToCache(param);
 		HashMap<String, Object> action = new HashMap<>();
@@ -138,7 +138,7 @@ public class CollaborativeEditingController {
 
 	@CrossOrigin(origins = "*", allowedHeaders = "*")
 	@PostMapping("/api/collaborativeediting/GetActionsFromServer")
-	public String GetActionsFromServer(@RequestBody ActionInfo param) throws ClassNotFoundException {
+	public String getActionsFromServer(@RequestBody ActionInfo param) throws ClassNotFoundException {
 		try (Jedis jedis = RedisSubscriber.getJedis()) {
 			// Initialize necessary variables from the parameters and helper class
 			int saveThreshold = CollaborativeEditingHelper.saveThreshold;
@@ -146,7 +146,7 @@ public class CollaborativeEditingController {
 			int lastSyncedVersion = param.getVersion();
 			int clientVersion = param.getVersion();
 			// Fetch actions that are effective and pending based on the last synced version
-			List<ActionInfo> actions = GetEffectivePendingVersion(roomName, lastSyncedVersion, jedis);
+			List<ActionInfo> actions = getEffectivePendingVersion(roomName, lastSyncedVersion, jedis);
 			List<ActionInfo> currentAction = new ArrayList<>();
 
 			for (ActionInfo action : actions) {
@@ -172,7 +172,7 @@ public class CollaborativeEditingController {
 		}
 	}
 
-	private List<ActionInfo> GetEffectivePendingVersion(String roomName, int lastSyncedVersion, Jedis jedis) {
+	private List<ActionInfo> getEffectivePendingVersion(String roomName, int lastSyncedVersion, Jedis jedis) {
 		// Define Redis keys for accessing the room data and its revision information
 		String[] keys = { roomName, roomName + CollaborativeEditingHelper.revisionInfoSuffix };
 		// Prepare Redis values for the script: start index and save threshold
