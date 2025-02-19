@@ -1,6 +1,6 @@
 # How to host the DocumentEditor service.
 
-Opening and saving documents from S3 bucket using PostgreSQL.
+Opening and saving documents using Redis.
 
 ## Maven Project
 
