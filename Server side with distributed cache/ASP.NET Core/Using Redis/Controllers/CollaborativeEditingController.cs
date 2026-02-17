@@ -49,7 +49,7 @@ namespace WebApplication1.Controllers
                 // We can modify the code to retrieve the document from a different location or source.
                 Syncfusion.EJ2.DocumentEditor.WordDocument document = GetSourceDocument();
                 // Get the list of pending operations for the document
-                List<ActionInfo> actions = await GetPendingOperations(param.fileName, 0, -1);
+                List<ActionInfo> actions = await GetPendingOperations(param.roomName, 0, -1);
                 if (actions != null && actions.Count > 0)
                 {
                     // If there are any pending actions, update the document with these actions
