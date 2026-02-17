@@ -171,7 +171,7 @@ namespace WebApplication1.Model
             get;
             set;
         }
-        public string documentOwner
+        public string roomName
         {
             get;
             set;
