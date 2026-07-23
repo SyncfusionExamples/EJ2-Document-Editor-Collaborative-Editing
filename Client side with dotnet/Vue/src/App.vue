@@ -60,7 +60,7 @@ export default {
   },
   data() {
     return {
-      serviceUrl: 'https://ej2services.syncfusion.com/production/web-services/api/documenteditor/',
+      serviceUrl: 'https://document.syncfusion.com/web-services/docx-editor/api/documenteditor/',
       collborativeEditingServiceUrl: 'http://localhost:5212/',    
       connection: null,
       documentName: 'Getting Started',
