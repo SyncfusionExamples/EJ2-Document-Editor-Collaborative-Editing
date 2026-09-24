@@ -127,23 +127,8 @@ export default {
     );
 
 })();
-    },
-   
-    
-    onDataRecived(action, data) {
-      if (this.$refs.doceditcontainer.ej2Instances.documentEditor.collaborativeEditingHandlerModule) {
-        if (action == 'connectionId') {
-          //Update the current connection id to track other users
-          this.connectionId = data;
-          this.addUser(data);
-        }
-        //Apply the remote action in DocumentEditor
-        this.$refs.doceditcontainer.ej2Instances.documentEditor.collaborativeEditingHandlerModule.applyRemoteAction(action, data);
-        this.removeUser(data);
-      }
-    },
-
-    
+    },   
+  
     addUser(actionInfos) {
       if (!(actionInfos instanceof Array)) {
         actionInfos = [actionInfos];
