@@ -33,7 +33,7 @@
     "webpack-stream": "^7.0.0"
   },
   "dependencies": {
-    "@microsoft/signalr": "^8.0.0",
+    "@syncfusion/ej2-collaborator": "*",
     "@syncfusion/ej2": "*",
     "@syncfusion/ej2-documenteditor": "*"
   }

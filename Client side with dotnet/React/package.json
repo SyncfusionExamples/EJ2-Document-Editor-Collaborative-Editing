@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@microsoft/signalr": "^8.0.0",
+    "@syncfusion/ej2-collaborator": "*",
     "@syncfusion/ej2-react-documenteditor": "*",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
