@@ -6,7 +6,7 @@ const path = require("path");
 
 module.exports = {
   entry: {
-    index: glob.sync("./src/**/*.js")
+    index: './src/app/app.js'
   },
   target: "web",
   module: {

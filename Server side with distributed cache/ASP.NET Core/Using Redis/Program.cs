@@ -1,7 +1,8 @@
-using WebApplication1.Hubs;
-using Microsoft.Azure.SignalR;
-using StackExchange.Redis;
-using WebApplication1.Service;
+
+using Syncfusion.Collaboration.Core.Extensions;
+using Syncfusion.Collaboration.Core.Interfaces;
+using WebApplication1.Adapter;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,30 +22,17 @@ var config = builder.Configuration;
 var redisConfig = config.GetSection("ConnectionStrings");
 var connectionString = redisConfig["RedisConnectionString"];
 
-//Configure SignalR
-builder.Services.AddSignalR().AddStackExchangeRedis(connectionString, options =>
+builder.Services.AddCollaborationServer(options =>
 {
-    options.Configuration.ChannelPrefix = "docedit";
-});
+    options.ConnectionString =
+        builder.Configuration.GetConnectionString("Redis")
+        ?? "localhost:6379";
+    options.ConnectionType = CollaborationConnectionType.WebSocket;    
 
-
-builder.Services.AddStackExchangeRedisCache(options =>
-{
-    options.Configuration = connectionString;
 });
+builder.Services.AddSingleton<ICollaborationAdapter,
+DocumentEditorCollaborationAdapter>();
 
-builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
-{
-    var configuration = ConfigurationOptions.Parse(connectionString, true);
-    return ConnectionMultiplexer.Connect(configuration);
-});
-
-builder.Services.AddSingleton<IBackgroundTaskQueue>(ctx =>
-{
-    //Configure maximum queue capacity.
-    return new BackgroundTaskQueue(200);
-});
-builder.Services.AddHostedService<QueuedHostedService>();
 
 var app = builder.Build();
 
@@ -53,11 +41,10 @@ app.UseStaticFiles();
 app.UseRouting();
 
 app.UseCors();
-
-app.MapHub<DocumentEditorHub>("/documenteditorhub");
-
+app.UseWebSockets();
 app.MapControllers();
-
+//common collaboration
+app.MapCollaborationServer();
 app.UseAuthorization();
 
 app.UseEndpoints(endpoints =>

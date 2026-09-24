@@ -17,7 +17,7 @@
         title="Print this document (Ctrl+P).">Print</ejs-button>
     </div>
     <div id="spinner">
-      <ejs-documenteditorcontainer ref="doceditcontainer" :contentChange="onContentChange" :serviceUrl='serviceUrl'
+      <ejs-documenteditorcontainer ref="doceditcontainer" :serviceUrl='serviceUrl'
         :enableToolbar='true' v-bind:created="onCreated">
       </ejs-documenteditorcontainer>
     </div>
@@ -48,10 +48,9 @@
 import { DocumentEditorContainerComponent, Toolbar, DocumentEditor } from '@syncfusion/ej2-vue-documenteditor';
 import { CollaborativeEditingHandler } from '@syncfusion/ej2-documenteditor';
 import { Tooltip } from '@syncfusion/ej2-popups';
-import { HubConnectionBuilder, HttpTransportType, HubConnectionState } from '@microsoft/signalr';
-import { hideSpinner, showSpinner } from '@syncfusion/ej2-popups';
 import { ButtonComponent } from "@syncfusion/ej2-vue-buttons";
-
+import { CollaborationClient } from "@syncfusion/ej2-collaborator";
+import { DocumentEditorAdapter } from "./Collaborator/DocumentEditorAdapter";
 export default {
   name: 'App',
   components: {
@@ -60,7 +59,7 @@ export default {
   },
   data() {
     return {
-      serviceUrl: 'https://document.syncfusion.com/web-services/docx-editor/api/documenteditor/',
+      serviceUrl: 'http://localhost:5212/',
       collborativeEditingServiceUrl: 'http://localhost:5212/',    
       connection: null,
       documentName: 'Getting Started',
@@ -101,36 +100,36 @@ export default {
       DocumentEditor.Inject(CollaborativeEditingHandler);
       //Enable collaborative editing in Document Editor.
       this.$refs.doceditcontainer.ej2Instances.documentEditor.enableCollaborativeEditing = true;
-      this.initializeSignalR();
-      this.loadDocumentFromServer();
-    },
-    onContentChange(args) {
-      if (this.$refs.doceditcontainer.ej2Instances.documentEditor.collaborativeEditingHandlerModule) {
-        //Send the editing action to server
-        this.$refs.doceditcontainer.ej2Instances.documentEditor.collaborativeEditingHandlerModule.sendActionToServer(args.operations)
+      const adapter = new DocumentEditorAdapter( this.$refs.doceditcontainer.ej2Instances, 'http://localhost:5212/');
+      const client = new CollaborationClient(adapter, {
+      serviceUrl:'http://localhost:5212/', //ASP.NET Core + SignalR
+      currentUser: "GUest User",
+      connectionType: "siganlr",      
+   
+      onUserJoined: (user) => {
+          console.log("User Joined", user);
+            this.connectionId = user;
+            this.addUser(user);
+      },
+      onUserLeft: (user) => {
+          console.log("User Left", user);
+          this.removeUser(user);
       }
-    },
-    initializeSignalR() {
-      // SignalR connection
-      this.connection = new HubConnectionBuilder().withUrl(this.collborativeEditingServiceUrl + 'documenteditorhub', {
-        skipNegotiation: true,
-        transport: HttpTransportType.WebSockets
-      }).withAutomaticReconnect().build();
-      //Event handler for signalR connection
-      this.connection.on('dataReceived', this.onDataRecived.bind(this));
+});
+(async () => {
 
-      this.connection.onclose(async () => {
-        if (this.connection && this.connection.state === HubConnectionState.Disconnected) {
-          //alert('Connection lost. Please relod the browser to continue.');
-        }
-      });
-      this.connection.onreconnected(() => {
-        if (this.connection && this.currentRoomName != null) {
-          this.connection.send('JoinGroup', { roomName: this.currentRoomName, currentUser: this.currentUser });
-        }
-        console.log('server reconnected!!!');
-      });
+    const roomName =
+        await adapter.loadFromServer(
+            "Giant Panda.docx"
+        );
+    await client.joinRoomAsync(
+        roomName
+    );
+
+})();
     },
+   
+    
     onDataRecived(action, data) {
       if (this.$refs.doceditcontainer.ej2Instances.documentEditor.collaborativeEditingHandlerModule) {
         if (action == 'connectionId') {
@@ -144,73 +143,7 @@ export default {
       }
     },
 
-    openDocument(responseText, roomName) {
-
-      showSpinner(document.getElementById('spinner'));
-
-      let data = JSON.parse(responseText);
-      if (this.$refs.doceditcontainer) {
-
-        //Update the room and version information to collaborative editing handler.
-        this.$refs.doceditcontainer.ej2Instances.documentEditor.collaborativeEditingHandlerModule.updateRoomInfo(roomName, data.version, this.collborativeEditingServiceUrl + 'api/CollaborativeEditing/');
-
-        //Open the document
-        this.$refs.doceditcontainer.ej2Instances.documentEditor.open(data.sfdt);
-
-        setTimeout(() => {
-          if (this.$refs.doceditcontainer) {
-            // connect to server using signalR
-            this.connectToRoom({ action: 'connect', roomName: roomName, currentUser: this.$refs.doceditcontainer.currentUser });
-          }
-        });
-      }
-      hideSpinner(document.getElementById('spinner'));
-    },
-
-    loadDocumentFromServer() {
-      const queryString = window.location.search;
-      const urlParams = new URLSearchParams(queryString);
-      let roomId = urlParams.get('id');
-      if (roomId == null) {
-        roomId = Math.random().toString(32).slice(2)
-        window.history.replaceState({}, "", `?id=` + roomId);
-      }
-      var httpRequest = new XMLHttpRequest();
-      httpRequest.open('Post', this.collborativeEditingServiceUrl + 'api/CollaborativeEditing/ImportFile', true);
-      httpRequest.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-      httpRequest.onreadystatechange = () => {
-        if (httpRequest.readyState === 4) {
-          if (httpRequest.status === 200 || httpRequest.status === 304) {
-
-            this.openDocument(httpRequest.responseText, roomId);
-          }
-          else {
-            hideSpinner(document.getElementById('container'));
-            alert('Fail to load the document');
-          }
-        }
-      };
-      httpRequest.send(JSON.stringify({ "fileName": "Giant Panda.docx", "roomName": roomId }));
-    },
-    connectToRoom(data) {
-      try {
-        this.currentRoomName = data.roomName;
-        if (this.connection) {
-          // start the connection.
-          this.connection.start().then(() => {
-            // Join the room.
-            if (this.connection) {
-              this.connection.send('JoinGroup', { roomName: data.roomName, currentUser: data.currentUser });
-            }
-            console.log('server connected!!!');
-          });
-        }
-      } catch (err) {
-        console.log(err);
-        //Attempting to reconnect in 5 seconds
-        setTimeout(this.connectToRoom, 5000);
-      }
-    },
+    
     addUser(actionInfos) {
       if (!(actionInfos instanceof Array)) {
         actionInfos = [actionInfos];
