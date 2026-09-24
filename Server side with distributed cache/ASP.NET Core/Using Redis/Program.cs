@@ -27,7 +27,7 @@ builder.Services.AddCollaborationServer(options =>
     options.ConnectionString =
         builder.Configuration.GetConnectionString("Redis")
         ?? "localhost:6379";
-    options.ConnectionType = CollaborationConnectionType.WebSocket;    
+    options.ConnectionType = CollaborationConnectionType.SignalR;    
 
 });
 builder.Services.AddSingleton<ICollaborationAdapter,
