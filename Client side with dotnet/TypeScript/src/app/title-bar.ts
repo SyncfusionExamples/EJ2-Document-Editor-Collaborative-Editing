@@ -143,7 +143,7 @@ export class TitleBar {
         }
     }
 
-    public removeUser(conectionId: string): void {
+    public removeUser(conectionId: any): void {
         if (this.userMap[conectionId]) {
             if (this.userList) {
                 this.userList.removeChild(this.userMap[conectionId]);

@@ -11,6 +11,7 @@
   "license": "SEE LICENSE IN license",
   "devDependencies": {
     "css-loader": "^6.8.1",
+    "glob": "^13.0.6",
     "html-webpack-plugin": "^5.5.3",
     "mini-css-extract-plugin": "^2.7.6",
     "sass": "^1.63.6",
@@ -21,9 +22,9 @@
     "webpack-dev-server": "^5.2.2"
   },
   "dependencies": {
-    "@microsoft/signalr": "^8.0.0",
+    "@syncfusion/ej2-buttons": "^*",
+    "@syncfusion/ej2-collaborator": "*",
     "@syncfusion/ej2-documenteditor": "^*",
-    "@syncfusion/ej2-splitbuttons": "^*",
-    "@syncfusion/ej2-buttons": "^*"
+    "@syncfusion/ej2-splitbuttons": "^*"
   }
 }
