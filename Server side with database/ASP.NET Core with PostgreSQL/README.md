@@ -12,12 +12,6 @@ This sample shows how to use PostgreSQL as the store for real-time collaborative
 
 The tables are created automatically on first use. You don't need to run any migration.
 
-## Prerequisites
-
-- [.NET 6 SDK](https://dotnet.microsoft.com/download/dotnet/6.0)
-- A running PostgreSQL server (local, Docker or cloud) and a database you can create tables in
-- A [Syncfusion license key](https://help.syncfusion.com/common/essential-studio/licensing/overview)
-
 ## Integrating PostgreSQL
 
 ### 1. Create a database
@@ -100,8 +94,3 @@ dotnet run
 
 Open the application URL that `dotnet run` prints. Open it in two browser windows with different user names and the same document to see edits sync between them. The `Properties/launchSettings.json` file lists the configured URLs.
 
-## Notes
-
-- Room names become PostgreSQL table names. The sample quotes them as identifiers (`"roomName"`). In a production app, validate or sanitize room names, and use parameters for every value, to prevent SQL injection.
-- To scale the SignalR hub across several servers, add a Redis backplane or Azure SignalR Service. The project already references both packages.
-- Make sure the database user has `CREATE TABLE`, `INSERT`, `SELECT` and `UPDATE` permissions.
