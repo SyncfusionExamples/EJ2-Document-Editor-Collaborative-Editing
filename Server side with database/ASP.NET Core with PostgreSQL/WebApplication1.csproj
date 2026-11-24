@@ -27,9 +27,9 @@
     <PackageReference Include="RedLock.net" Version="2.3.2" />
     <PackageReference Include="StackExchange.Redis" Version="2.6.122" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
-    <PackageReference Include="Syncfusion.EJ2.AspNet.Core" Version="35.2.13" />
-    <PackageReference Include="Syncfusion.EJ2.SpellChecker.AspNet.Core" Version="35.2.13" />
-    <PackageReference Include="Syncfusion.EJ2.WordEditor.AspNet.Core" Version="35.2.13" />
+    <PackageReference Include="Syncfusion.EJ2.AspNet.Core" Version="*" />
+    <PackageReference Include="Syncfusion.EJ2.SpellChecker.AspNet.Core" Version="*" />
+    <PackageReference Include="Syncfusion.EJ2.WordEditor.AspNet.Core" Version="*" />
   </ItemGroup>
 
 </Project>
